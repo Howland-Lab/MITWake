@@ -1,10 +1,18 @@
+"""
+Implementation of the yaw-thrust actuator disk model as described in 'Modelling
+the induction, thrust and power of a yaw-misaligned actuator disk' Heck et al.
+2023.
+"""
+
 import numpy as np
 from scipy.special import erf
-from scipy.integrate import cumtrapz
-from tqdm import tqdm
+from scipy.integrate import cumtrapz, trapz
 
 
 def limitedcase(Ctprime, yaw, Uamb=1):
+    """
+    Solves the limiting case when v_4 << u_4. (Eq. 2.19, 2.20)
+    """
     a = Ctprime * np.cos(yaw) ** 2 / (4 + Ctprime * np.cos(yaw) ** 2)
     u4 = Uamb * (4 - Ctprime * np.cos(yaw) ** 2) / (4 + Ctprime * np.cos(yaw) ** 2)
     v4 = Uamb * (
@@ -16,6 +24,9 @@ def limitedcase(Ctprime, yaw, Uamb=1):
 
 
 def subiteration(Ctprime, yaw, Uamb, a, u4, v4):
+    """
+    Subiteration of Eq. 2.15
+    """
     _a = 1 - np.sqrt(Uamb**2 - u4**2 - v4**2) / (
         np.sqrt(Ctprime) * Uamb * np.cos(yaw)
     )
@@ -28,6 +39,9 @@ def subiteration(Ctprime, yaw, Uamb, a, u4, v4):
 
 
 def fullcase(Ctprime, yaw, Uamb=1, eps=0.000001):
+    """
+    Solves Eq. 2.15.
+    """
     a_guess, u4_guess, v4_guess = limitedcase(Ctprime, yaw, Uamb)
 
     a, u4, v4 = subiteration(Ctprime, yaw, Uamb, a_guess, u4_guess, v4_guess)
@@ -75,9 +89,15 @@ class MITWake:
         self.Uamb = 1
 
     def wake_diameter(self, x):
+        """
+        Solves the normalized far-wake diameter (between C1 and C2)
+        """
         return 1 + self.kw * np.log(1 + np.exp(2 * x / self.D - 1))
 
     def _du(self, x):
+        """
+        Solves Eq. C2
+        """
         return (
             0.5
             * (self.Uamb - self.u4)
@@ -86,6 +106,9 @@ class MITWake:
         )
 
     def _dv(self, x):
+        """
+        Solves Eq. C3.
+        """
         return (
             -0.5
             * self.v4
@@ -94,6 +117,9 @@ class MITWake:
         )
 
     def centerline(self, x, dx=0.01):
+        """
+        Solves Eq. C4.
+        """
         xmax = np.max(x)
         _x = np.arange(0, xmax, dx)
         dv = self._dv(_x)
@@ -102,6 +128,9 @@ class MITWake:
         return np.interp(x, _x, _yc)
 
     def deficit(self, x, y):
+        """
+        Solves Eq. C1
+        """
         return (
             self._du(x)
             * self.D**2
@@ -112,7 +141,21 @@ class MITWake:
             )
         )
 
+    def REWS(self, x, y, R, disc=50):
+        """
+        Calculates the rotor effective wind speed over a semiaxisymmetric disk
+        of radius R located at downstream and lateral location (x, y) relative
+        to the wake source. Disk is assumed to be perpendicular to the
+        freestream direction (x).
+        """
+        dys = np.linspace(-R, R, disc)
+        ys = y + dys
+
+        deficit = self.deficit(x, ys)
+        REWS = 1 / R**2 * trapz(np.abs(dys) * (1 - deficit), dys)
+
+        return REWS
+
 
 if __name__ == "__main__":
-
     pass
