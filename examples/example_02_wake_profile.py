@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
-from mit_yaw_induction_wake_model import ActuatorDisk
+from mit_yaw_induction_wake_model import ActuatorDisk, Gradients
 
 FIGDIR = Path("fig")
 FIGDIR.mkdir(parents=True, exist_ok=True)
@@ -17,13 +17,13 @@ if __name__ == "__main__":
 
     xmesh, ymesh = np.meshgrid(xs, ys)
 
-    wake = ActuatorDisk.MITWake(CT, yaw)
+    wake = Gradients.MITWakeGrad(CT, yaw)
 
-    deficit = wake.deficit(xmesh, ymesh)
+    deficit, ddeficitdCt, ddeficitdyaw = wake.deficit(xmesh, ymesh)
 
     plt.figure()
     plt.imshow(
-        deficit,
+        ddeficitdyaw,
         extent=[xs.min(), xs.max(), ys.min(), ys.max()],
         origin="lower",
         cmap="YlGnBu",
@@ -38,4 +38,4 @@ if __name__ == "__main__":
     p = rotmat @ p
 
     plt.plot(p[0, :], p[1, :], "k", lw=5)
-    plt.savefig(FIGDIR / "wake_profile.png", dpi=300, bbox_inches="tight")
+    plt.savefig(FIGDIR / "wake_profile_dyaw.png", dpi=300, bbox_inches="tight")

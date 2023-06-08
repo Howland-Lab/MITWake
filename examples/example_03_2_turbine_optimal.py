@@ -5,7 +5,7 @@ from scipy.integrate import trapz
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-from mit_yaw_induction_wake_model import ActuatorDisk
+from mit_yaw_induction_wake_model import ActuatorDisk, Gradients
 
 FIGDIR = Path("fig")
 FIGDIR.mkdir(parents=True, exist_ok=True)
@@ -17,18 +17,18 @@ R = 0.5  # rotor radius
 Ad = np.pi * R**2
 
 
-def Cp(Ctprime, yaw, REWS):
-    a, _, _ = ActuatorDisk.fullcase(Ctprime, yaw)
-    return Ctprime * ((1 - a) * np.cos(yaw) * REWS) ** 3
+# def Cp(Ctprime, yaw, REWS):
+#     a, _, _ = ActuatorDisk.calculate_induction(Ctprime, yaw)
+#     return Ctprime * ((1 - a) * np.cos(yaw) * REWS) ** 3
 
 
 def two_turbine_Cp(Ct1, yaw, T2_y, T2_x):
-    wake = ActuatorDisk.MITWake(Ct1, yaw)
+    wake = Gradients.MITWakeGrad(Ct1, yaw)
 
-    REWS = wake.REWS(T2_x, T2_y, R=R)
+    # REWS = wake.REWS(T2_x, T2_y)
 
-    Cp1 = Cp(Ct1, yaw, 1)
-    Cp2 = Cp(2, 0, REWS)
+    Cp1, *_ = wake.Cp1()  # Cp(Ct1, yaw, 1)
+    Cp2, *_ = wake.Cp2(T2_x, T2_y)  # Cp(2, 0, REWS)
 
     Cp_total = (Cp1 + Cp2) / 2
 
@@ -75,5 +75,3 @@ if __name__ == "__main__":
     T2_x = 8
     for T2_y in tqdm(np.arange(0, 2, 0.1)):
         out = optimize_and_plot(T2_x, np.round(T2_y, 3))
-
-
