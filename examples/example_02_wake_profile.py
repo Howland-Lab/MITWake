@@ -23,7 +23,7 @@ if __name__ == "__main__":
 
     plt.figure()
     plt.imshow(
-        ddeficitdyaw,
+        deficit,
         extent=[xs.min(), xs.max(), ys.min(), ys.max()],
         origin="lower",
         cmap="YlGnBu",
@@ -38,4 +38,4 @@ if __name__ == "__main__":
     p = rotmat @ p
 
     plt.plot(p[0, :], p[1, :], "k", lw=5)
-    plt.savefig(FIGDIR / "wake_profile_dyaw.png", dpi=300, bbox_inches="tight")
+    plt.savefig(FIGDIR / "wake_profile.png", dpi=300, bbox_inches="tight")
