@@ -118,7 +118,7 @@ class GradGaussian(Gaussian):
 
     def centerline(self, x, dx=0.01):
         xmax = np.max(x)
-        _x = np.arange(0, max(xmax, 2*dx), dx)
+        _x = np.arange(0, max(xmax, 2 * dx), dx)
         d = self.wake_diameter(_x)
 
         dv = -0.5 / d**2 * (1 + erf(_x / (np.sqrt(2) / 2)))
@@ -152,57 +152,11 @@ class GradGaussian(Gaussian):
             * np.exp(-(((y - yc) ** 2 + z**2) / (2 * self.sigma**2 * d**2)))
         )
 
-        ddeficitdCt = deficit_  * dudCt + deficit_ * (
+        ddeficitdCt = deficit_ * dudCt + du * deficit_ * (
             (y - yc) / (self.sigma**2 * d**2) * dycdCt
         )
-        ddeficitdyaw = deficit_  * dudyaw + deficit_ * (
+        ddeficitdyaw = deficit_ * dudyaw + du * deficit_ * (
             (y - yc) / (self.sigma**2 * d**2) * dycdyaw
         )
 
         return deficit_ * du, ddeficitdCt, ddeficitdyaw
-
-    def REWS(self, x0, y0, r_disc=20, theta_disc=50):
-        """
-        Calculates the rotor effective wind speed over a disk of radius R
-        located at downstream and lateral location (x0, y0) relative to the wake
-        source. Disk is assumed to be perpendicular to the freestream direction
-        (x). The problem is extended from 2 to 3 dimensions to more accurately
-        perform the numerical integration.
-        """
-        # Define points over rotor disk on polar grid
-        rs = np.linspace(0, 0.5, r_disc)
-        thetas = np.linspace(0, 2 * np.pi, theta_disc)
-
-        r_mesh, theta_mesh = np.meshgrid(rs, thetas)
-        ys = r_mesh * np.sin(theta_mesh) + y0
-        zs = r_mesh * np.cos(theta_mesh)
-
-        # Evaluate the deficit at points (converted to cartesian).
-        deficit, ddeficitdCt, ddeficitdyaw = self.deficit(x0, ys, zs)
-
-        # Perform integration over rotor disk in polar coordinates.
-        REWS = 1 - np.trapz(np.trapz(r_mesh * deficit, r_mesh, axis=1), thetas)
-        dREWSdCt = -np.trapz(np.trapz(r_mesh * ddeficitdCt, r_mesh, axis=1), thetas)
-        dREWSdyaw = -np.trapz(np.trapz(r_mesh * ddeficitdyaw, r_mesh, axis=1), thetas)
-        return REWS, dREWSdCt, dREWSdyaw
-
-    def REWS_anal(self, x, y):
-        raise NotImplementedError
-
-    # def Cp1(self):
-    #     # currently assumes freestream. Todo: add custon REWS
-    #     Cp1, dCp1dCt, dCp1dyaw = calculate_Cp1(
-    #         self.Ctprime, self.yaw, 1, self.a, 0, 0, self.dadCt, self.dadyaw
-    #     )
-
-    #     return Cp1, dCp1dCt, dCp1dyaw
-
-    # def Cp2(self, x0, y0, Ct2=2, yaw2=0):
-    #     REWS, dREWSdCt, dREWSdyaw = self.REWS(x0, y0)
-    #     a2, *_ = calculate_induction(Ct2, yaw2)
-
-    #     Cp2, dCp2dCt, dCp2dyaw = calculate_Cp2(
-    #         Ct2, yaw2, REWS, a2, dREWSdCt, dREWSdyaw, self.dadCt, self.dadyaw
-    #     )
-
-    #     return Cp2, dCp2dCt, dCp2dyaw

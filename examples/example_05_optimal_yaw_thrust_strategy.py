@@ -6,48 +6,34 @@ import pandas as pd
 from scipy import optimize
 from tqdm import tqdm
 
-from mit_yaw_induction_wake_model import ActuatorDisk
+from mit_yaw_induction_wake_model import Windfarm
 
 FIGDIR = Path("fig")
 FIGDIR.mkdir(parents=True, exist_ok=True)
 
-R = 0.5
 
 ### DEBUG
 nit, nfev, njev = [], [], []
 
 
-def Cp(Ctprime, yaw, REWS):
-    a, _, _ = ActuatorDisk.calculate_induction(Ctprime, yaw)
-    return Ctprime * ((1 - a) * np.cos(yaw) * REWS) ** 3
+def objective_func(x, T2_x, T2_y):
+    Ct1, yaw1 = x
+    farm = Windfarm.GradWindfarm([0, T2_x], [0, T2_y], [Ct1, 2], [yaw1, 0])
+    Cp, dCpdCt, dCpdyaw = farm.total_Cp()
+
+    return -Cp, (-dCpdCt[0], -dCpdyaw[0])
 
 
-def two_turbine_Cp(x, T2_y, T2_x, anal=False):
-    Ct1, yaw = x
-    wake = ActuatorDisk.MITWake(Ct1, yaw)
-
-    if anal:
-        REWS = wake.REWS_anal(T2_x, T2_y)
-    else:
-        REWS = wake.REWS(T2_x, T2_y, R=R)
-
-    Cp1 = Cp(Ct1, yaw, 1)
-    Cp2 = Cp(2, 0, REWS)
-
-    Cp_total = (Cp1 + Cp2) / 2
-
-    return -Cp_total
-
-
-def find_optimal_setpoints(T2_x, T2_y, anal):
+def find_optimal_setpoints(T2_x, T2_y):
     res = optimize.minimize(
-        two_turbine_Cp,
-        [1, 0],
-        args=(T2_y, T2_x, anal),
-        bounds=[
-            (0.00001, 5),
-            (-np.pi, np.pi),
-        ],
+        objective_func,
+        [1, 0.00],
+        args=(T2_x, T2_y),
+        # bounds=[
+        #     (0.00001, 5),
+        #     (-np.pi / 2 * 0.9, np.pi / 2 * 0.9),
+        # ],
+        jac=True,
     )
 
     Ct, yaw = res.x
@@ -62,9 +48,7 @@ if __name__ == "__main__":
     Cts, yaws, T2_xs, T2_ys, farm_efficiencies = [], [], [], [], []
     for T2_x in tqdm(np.arange(1, 10, 1)):
         for T2_y in tqdm(np.linspace(-3, 3, 200)):
-            Ct, yaw, farm_eff = find_optimal_setpoints(
-                T2_x, np.round(T2_y, 3), anal=False
-            )
+            Ct, yaw, farm_eff = find_optimal_setpoints(T2_x, np.round(T2_y, 3))
             Cts.append(Ct)
             yaws.append(yaw)
             T2_xs.append(T2_x)
@@ -105,7 +89,7 @@ if __name__ == "__main__":
         plt.xlabel(to_plot_x)
         plt.ylabel(to_plot_y)
         plt.savefig(
-            FIGDIR / f"optimal_{to_plot_y}_vs_{to_plot_x}.png",
+            FIGDIR / f"example_05_optimal_{to_plot_y}_vs_{to_plot_x}.png",
             dpi=300,
             bbox_inches="tight",
         )

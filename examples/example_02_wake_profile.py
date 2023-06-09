@@ -9,6 +9,9 @@ FIGDIR = Path("fig")
 FIGDIR.mkdir(parents=True, exist_ok=True)
 
 TITLES = ["$\delta U$", "$d\delta U/dC_t$", "$d\delta U/d\gamma$"]
+cmaps = ["YlGnBu_r", "RdYlGn", "RdYlGn"]
+vmins = [None, -0.3, -1]
+vmaxs = [None, 0.3, 1]
 yaw = np.deg2rad(24)
 Ct = 2.11
 if __name__ == "__main__":
@@ -23,16 +26,20 @@ if __name__ == "__main__":
 
     fig, axes = plt.subplots(3, 1, sharex=True)
 
-    for ax, field, title in zip(axes, [deficit, ddeficitdCt, ddeficitdyaw], TITLES):
+    for ax, field, title, cmap, vmin, vmax in zip(
+        axes, [deficit, ddeficitdCt, ddeficitdyaw], TITLES, cmaps, vmins, vmaxs
+    ):
         ax.imshow(
             field,
             extent=[xs.min(), xs.max(), ys.min(), ys.max()],
             origin="lower",
-            cmap="YlGnBu",
+            cmap=cmap,
+            vmin=vmin,
+            vmax=vmax,
         )
 
         # Draw turbine
-        turb_x, turb_y = 0, 0
+        turb_x, turb_y, yaw = 0, 0, yaw
         R = 0.5
         p = np.array([[turb_x, turb_x], [turb_y + R, turb_y - R]])
         rotmat = np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]])

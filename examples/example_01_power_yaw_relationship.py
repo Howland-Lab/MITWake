@@ -26,4 +26,6 @@ if __name__ == "__main__":
     plt.grid()
     plt.xlim(0, 30)
     plt.ylim(0.6, 1.05)
-    plt.savefig(FIGDIR / "example_01_power_yaw_relationship.png", dpi=300, bbox_inches="tight")
+    plt.savefig(
+        FIGDIR / "example_01_power_yaw_relationship.png", dpi=300, bbox_inches="tight"
+    )
