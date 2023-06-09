@@ -1,5 +1,5 @@
 import numpy as np
-from mit_yaw_induction_wake_model import ActuatorDisk
+from mit_yaw_induction_wake_model import Rotor
 from scipy.special import erf
 from scipy.integrate import cumtrapz, trapz
 
@@ -135,7 +135,7 @@ def calculate_ddyaw(Ct, yaw, a, u4, v4, eps=0.000001):
 
 
 def calculate_induction(Ct, yaw):
-    a, u4, v4 = ActuatorDisk.calculate_induction(Ct, yaw)
+    a, u4, v4 = Rotor.calculate_induction(Ct, yaw)
     dadCt, dudCt, dvdCt = calculate_ddCT(Ct, yaw, a, u4, v4)
     dadyaw, dudyaw, dvdyaw = calculate_ddyaw(Ct, yaw, a, u4, v4)
 
@@ -150,7 +150,6 @@ def wake_diameter(x, kw):
 
 
 def calculate_yc(x, v4, dvdCt, dvdyaw, kw, dx=0.01):
-    # dv = -0.5 * v4 /d ** 2 * (1 + erf(x / (np.sqrt(2) / 2)))
 
     xmax = np.max(x)
     _x = np.arange(0, xmax, dx)
