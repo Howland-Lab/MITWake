@@ -13,7 +13,7 @@ class BasicTurbine:
 
 
 class GradientTurbine:
-    def __init__(self, Ct, yaw, x=0, y=0, sigma=0.25, kw=0.07):
+    def __init__(self, Ct, yaw, x=0, y=0, sigma=0.25, kw=0.07, induction_eps=0.000001):
         self.x, self.y = x, y
         self.Ct, self.yaw = Ct, yaw
         (
@@ -26,7 +26,7 @@ class GradientTurbine:
             self.dadyaw,
             dudyaw,
             dvdyaw,
-        ) = Rotor.gradyawthrust(Ct, yaw)
+        ) = Rotor.gradyawthrust(Ct, yaw, eps=induction_eps)
         self.wake = Wake.GradGaussian(u4, v4, dudCt, dudyaw, dvdCt, dvdyaw, sigma, kw)
 
     def deficit(self, x, y, z=0, FOR="met"):

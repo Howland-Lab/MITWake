@@ -1,5 +1,6 @@
 import numpy as np
 from mit_yaw_induction_wake_model import Turbine
+from mit_yaw_induction_wake_model import REWS as REWS_methods
 
 
 class Windfarm:
@@ -20,12 +21,34 @@ class Windfarm:
 
 
 class GradWindfarm:
-    def __init__(self, xs, ys, Cts, yaws, sigmas=None, kwts=None):
+    def __init__(
+        self,
+        xs,
+        ys,
+        Cts,
+        yaws,
+        REWS="area",
+        sigmas=None,
+        kwts=None,
+        induction_eps=0.000001,
+        REWS_params={},
+    ):
         assert all(len(Cts) == len(x) for x in [yaws, xs, ys])
 
         self.turbines = []
         for Ct, yaw, x, y in zip(Cts, yaws, xs, ys):
-            self.turbines.append(Turbine.GradientTurbine(Ct, yaw, x, y))
+            self.turbines.append(
+                Turbine.GradientTurbine(Ct, yaw, x, y, induction_eps=induction_eps)
+            )
+
+        if REWS == "area":
+            self.REWS_method = REWS_methods.Area(**REWS_params)
+        elif REWS == "line":
+            self.REWS_method = REWS_methods.Line(**REWS_params)
+        elif REWS == "point":
+            self.REWS_method = REWS_methods.Point(**REWS_params)
+        else:
+            raise ValueError(f"REWS {REWS} not found.")
 
     def wsp(self, x, y, z=0, ignore=[]):
         dus, ddudCts, ddudyaws = [], [], []
@@ -46,51 +69,8 @@ class GradWindfarm:
 
         return U, dUdCt, dUdyaw
 
-    def REWS_at_rotors(self, r_disc=20, theta_disc=50):
-        """
-        Calculates the rotor effective wind speed over a disk of radius R
-        located at downstream and lateral location (x0, y0) relative to the wake
-        source. Disk is assumed to be perpendicular to the freestream direction
-        (x). The problem is extended from 2 to 3 dimensions to more accurately
-        perform the numerical integration.
-        """
-        # Define points over rotor disk on polar grid
-        N = len(self.turbines)
-
-        rs = np.linspace(0, 0.5, r_disc)
-        thetas = np.linspace(0, 2 * np.pi, theta_disc)
-
-        r_mesh, theta_mesh = np.meshgrid(rs, thetas)
-
-        Xs = np.ones((N, theta_disc, r_disc))
-        Ys = np.zeros((N, theta_disc, r_disc))
-        Zs = np.zeros((N, theta_disc, r_disc))
-        for i, turbine in enumerate(self.turbines):
-            Xs[i, :, :] = turbine.x
-            Ys[i, :, :] = r_mesh * np.sin(theta_mesh) + turbine.y
-            Zs[i, :, :] = r_mesh * np.cos(theta_mesh)
-
-        # Evaluate the deficit at points (converted to cartesian). Ignore self
-        U = np.zeros((N, theta_disc, r_disc))
-        dUdCt = np.zeros((N, N, theta_disc, r_disc))
-        dUdyaw = np.zeros((N, N, theta_disc, r_disc))
-        for i in range(N):
-            U[i, :, :], dUdCt[i, :, :], dUdyaw[i, :, :] = self.wsp(
-                Xs[i, :, :], Ys[i, :, :], Zs[i, :, :], ignore=[i]
-            )
-
-        # Perform integration over rotor disk in polar coordinates.
-        REWS, dREWSdCt, dREWSdyaw = np.zeros(N), np.zeros((N, N)), np.zeros((N, N))
-        for i, (_U, _dUdCt, _dUdyaw) in enumerate(zip(U, dUdCt, dUdyaw)):
-            REWS[i] = np.trapz(np.trapz(r_mesh * _U, r_mesh, axis=1), thetas)
-            dREWSdCt[:, i] = np.trapz(
-                np.trapz(r_mesh * _dUdCt, r_mesh, axis=-1), thetas, axis=-1
-            )
-            dREWSdyaw[:, i] = np.trapz(
-                np.trapz(r_mesh * _dUdyaw, r_mesh, axis=-1), thetas, axis=-1
-            )
-
-        return 4 / np.pi * REWS, 4 / np.pi * dREWSdCt, 4 / np.pi * dREWSdyaw
+    def REWS_at_rotors(self):
+        return self.REWS_method.grad_REWS_at_rotors(self)
 
     def turbine_Cp(self):
         REWS, dREWSdCt, dREWSdyaw = self.REWS_at_rotors()

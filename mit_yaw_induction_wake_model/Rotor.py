@@ -83,13 +83,15 @@ def _yawthrust_ddCt_subiteration(dadCt, dudCt, dvdCt, Ct, yaw, a, u4, v4):
     Returns:
         Tuple: The new values of dadCt, dudCt, and dvdCt.
     """
-    dadCt_new = ((1 - a) ** 2 * np.cos(yaw) ** 2 + 2 * u4 * dudCt + 2 * v4 * dvdCt) / (
-        2 * Ct * (1 - a) * np.cos(yaw) ** 2
+    cosy, siny = np.cos(yaw), np.sin(yaw)
+    cosy2 = cosy**2
+
+    dadCt_new = ((1 - a) ** 2 * cosy2 + 2 * u4 * dudCt + 2 * v4 * dvdCt) / (
+        2 * Ct * (1 - a) * cosy2
     )
-    dudCt_new = 0.5 * Ct * dadCt * np.cos(yaw) ** 2 - 0.5 * (1 - a) * np.cos(yaw) ** 2
+    dudCt_new = 0.5 * Ct * dadCt * cosy2 - 0.5 * (1 - a) * cosy2
     dvdCt_new = (
-        0.5 * Ct * (1 - a) * dadCt * np.sin(yaw) * np.cos(yaw) ** 2
-        - 0.25 * (1 - a) ** 2 * np.sin(yaw) * np.cos(yaw) ** 2
+        0.5 * Ct * (1 - a) * dadCt * siny * cosy2 - 0.25 * (1 - a) ** 2 * siny * cosy2
     )
 
     return dadCt_new, dudCt_new, dvdCt_new
@@ -145,18 +147,19 @@ def _yawthrust_ddyaw_subiteration(dadyaw, dudyaw, dvdyaw, Ct, yaw, a, u4, v4):
     Returns:
         Tuple: The new values of dadyaw, dudyaw, and dvdyaw.
     """
-    dadyaw_new = (
-        u4 * dudyaw + v4 * dvdyaw - Ct * (1 - a) ** 2 * np.cos(yaw) * np.sin(yaw)
-    ) / (Ct * (1 - a) * np.cos(yaw) ** 2)
-    dudyaw_new = Ct * np.cos(yaw) * (0.5 * np.cos(yaw) * dadyaw + (1 - a) * np.sin(yaw))
+    cosy, siny = np.cos(yaw), np.sin(yaw)
+    dadyaw_new = (u4 * dudyaw + v4 * dvdyaw - Ct * (1 - a) ** 2 * cosy * siny) / (
+        Ct * (1 - a) * cosy**2
+    )
+    dudyaw_new = Ct * cosy * (0.5 * cosy * dadyaw + (1 - a) * siny)
     dvdyaw_new = (
         0.5
         * Ct
         * (1 - a)
         * (
-            dadyaw * np.sin(yaw) * np.cos(yaw) ** 2
-            - 0.5 * (1 - a) * np.cos(yaw) ** 3
-            + (1 - a) * np.sin(yaw) ** 2 * np.cos(yaw)
+            dadyaw * siny * cosy**2
+            - 0.5 * (1 - a) * cosy**3
+            + (1 - a) * siny**2 * cosy
         )
     )
 
@@ -196,11 +199,11 @@ def yawthrust_ddyaw(Ct, yaw, a, u4, v4, eps=0.000001):
     return dayaw, duyaw, dvyaw
 
 
-def gradyawthrust(Ct, yaw):
-    a, u4, v4 = yawthrust(Ct, yaw)
+def gradyawthrust(Ct, yaw, eps=0.000001):
+    a, u4, v4 = yawthrust(Ct, yaw, eps=eps)
 
-    dadCt, dudCt, dvdCt = yawthrust_ddCt(Ct, yaw, a, u4, v4)
-    dadyaw, dudyaw, dvdyaw = yawthrust_ddyaw(Ct, yaw, a, u4, v4)
+    dadCt, dudCt, dvdCt = yawthrust_ddCt(Ct, yaw, a, u4, v4, eps=eps)
+    dadyaw, dudyaw, dvdyaw = yawthrust_ddyaw(Ct, yaw, a, u4, v4, eps=eps)
 
     return a, u4, v4, dadCt, dudCt, dvdCt, dadyaw, dudyaw, dvdyaw
 
