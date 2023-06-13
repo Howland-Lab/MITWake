@@ -8,8 +8,11 @@ class BasicTurbine:
         self.a, u4, v4 = Rotor.yawthrust(Ct, yaw)
         self.wake = Wake.Gaussian(u4, v4, sigma, kw)
 
-    def deficit(self, x, y, z=0):
-        return self.wake.deficit(x, y, z)
+    def deficit(self, x, y, z=0, FOR="met"):
+        if FOR == "met":
+            return self.wake.deficit(x - self.x, y - self.y, z)
+        elif FOR == "local":
+            return self.wake.deficit(x, y, z)
 
 
 class GradientTurbine:
