@@ -2,51 +2,40 @@ import numpy as np
 
 
 class Point:
-    def grad_REWS_at_rotors(self, windfarm):
-        N = len(windfarm.turbines)
-        Xs = [turbine.x for turbine in windfarm.turbines]
-        Ys = [turbine.y for turbine in windfarm.turbines]
+    def grid_points(self, X_t, Y_t):
+        """
+        Returns the grid points to be sampled given the turbine locations, X_t,
+        Y_t
+        """
+        return np.expand_dims(X_t, 1), np.expand_dims(Y_t, 1), 0
 
-        U = np.zeros((N))
-        dUdCt = np.zeros((N, N))
-        dUdyaw = np.zeros((N, N))
-        for i, (x, y) in enumerate(zip(Xs, Ys)):
-            U[i], dUdCt[:, i], dUdyaw[:, i] = windfarm.wsp(
-                np.array(x), np.array(y), ignore=[i]
-            )
-
-        return U, dUdCt, dUdyaw
+    def integrate(self, U):
+        return np.squeeze(U, -1)
 
 
 class Line:
-    def grad_REWS_at_rotors(self, windfarm):
-        N = len(windfarm.turbines)
-        Xs = np.array([turbine.x for turbine in windfarm.turbines])
-        Ys = np.array([turbine.y for turbine in windfarm.turbines])
+    def __init__(self, disc=100):
+        # predefine polar grid for performing REWS
+        self.disc = disc
+        self.ys = np.linspace(-0.5, 0.5, disc)
 
-        deficits, ddeficitdCts, ddeficitdyaws = [], [], []
-        for turbine in windfarm.turbines:
-            _deficit, _ddeficitdCt, _ddeficitdyaw = turbine.wake.line_deficit(
-                Xs - turbine.x, Ys - turbine.y
-            )
-            deficits.append(_deficit)
-            ddeficitdCts.append(_ddeficitdCt)
-            ddeficitdyaws.append(_ddeficitdyaw)
-        deficits = np.array(deficits)
-        ddeficitdCts = np.array(ddeficitdCts)
-        ddeficitdyaws = np.array(ddeficitdyaws)
+    def grid_points(self, X_t, Y_t):
+        """
+        Returns the grid points to be sampled given the turbine locations, X_t,
+        Y_t
+        """
+        N_turb = len(X_t)
+        X = np.zeros((N_turb, self.disc))
+        Y = np.zeros((N_turb, self.disc))
 
-        # ignore effect of own wake on self
-        np.fill_diagonal(deficits, 0)
-        np.fill_diagonal(ddeficitdCts, 0)
-        np.fill_diagonal(ddeficitdyaws, 0)
+        for i, (x_t, y_t) in enumerate(zip(X_t, Y_t)):
+            X[i, :] = x_t
+            Y[i, :] = self.ys + y_t
 
-        # linear sum
-        U = 1 - np.sum(deficits, axis=0)
-        dUdCts = -ddeficitdCts
-        dUdyaws = -ddeficitdyaws
+        return X, Y, 0
 
-        return U, dUdCts, dUdyaws
+    def integrate(self, U):
+        return np.trapz(U, self.ys, axis=-1)
 
 
 class Area:
@@ -58,49 +47,28 @@ class Area:
 
         self.r_mesh, self.theta_mesh = np.meshgrid(rs, self.thetas)
 
-    def grad_REWS_at_rotors(self, windfarm):
+    def grid_points(self, X_t, Y_t):
         """
-        Calculates the rotor effective wind speed over a disk of radius R
-        located at downstream and lateral location (x0, y0) relative to the wake
-        source. Disk is assumed to be perpendicular to the freestream direction
-        (x). The problem is extended from 2 to 3 dimensions to more accurately
-        perform the numerical integration.
+        Returns the grid points to be sampled given the turbine locations, X_t,
+        Y_t
         """
-        # Define points over rotor disk on polar grid
-        N = len(windfarm.turbines)
+        N_turb = len(X_t)
+        X = np.zeros((N_turb, self.theta_disc, self.r_disc))
+        Y = np.zeros((N_turb, self.theta_disc, self.r_disc))
+        Z = np.zeros((N_turb, self.theta_disc, self.r_disc))
 
-        Xs = np.ones((N, self.theta_disc, self.r_disc))
-        Ys = np.zeros((N, self.theta_disc, self.r_disc))
-        Zs = np.zeros((N, self.theta_disc, self.r_disc))
-        for i, turbine in enumerate(windfarm.turbines):
-            Xs[i, :, :] = turbine.x
-            Ys[i, :, :] = self.r_mesh * np.sin(self.theta_mesh) + turbine.y
-            Zs[i, :, :] = self.r_mesh * np.cos(self.theta_mesh)
+        for i, (x_t, y_t) in enumerate(zip(X_t, Y_t)):
+            X[i, :, :] = x_t
+            Y[i, :, :] = self.r_mesh * np.sin(self.theta_mesh) + y_t
+            Z[i, :, :] = self.r_mesh * np.cos(self.theta_mesh)
 
-        # Evaluate the deficit at points (converted to cartesian). Ignore self
-        U = np.zeros((N, self.theta_disc, self.r_disc))
-        dUdCt = np.zeros((N, N, self.theta_disc, self.r_disc))
-        dUdyaw = np.zeros((N, N, self.theta_disc, self.r_disc))
-        for i in range(N):
-            U[i, :, :], dUdCt[i, :, :], dUdyaw[i, :, :] = windfarm.wsp(
-                Xs[i, :, :], Ys[i, :, :], Zs[i, :, :], ignore=[i]
-            )
+        return X, Y, Z
 
-        # Perform integration over rotor disk in polar coordinates.
-        REWS, dREWSdCt, dREWSdyaw = np.zeros(N), np.zeros((N, N)), np.zeros((N, N))
-        for i, (_U, _dUdCt, _dUdyaw) in enumerate(zip(U, dUdCt, dUdyaw)):
-            REWS[i] = np.trapz(
-                np.trapz(self.r_mesh * _U, self.r_mesh, axis=1), self.thetas
+    def integrate(self, U):
+        return (
+            4
+            / np.pi
+            * np.trapz(
+                np.trapz(self.r_mesh * U, self.r_mesh, axis=-1), self.thetas, axis=-1
             )
-            dREWSdCt[:, i] = np.trapz(
-                np.trapz(self.r_mesh * _dUdCt, self.r_mesh, axis=-1),
-                self.thetas,
-                axis=-1,
-            )
-            dREWSdyaw[:, i] = np.trapz(
-                np.trapz(self.r_mesh * _dUdyaw, self.r_mesh, axis=-1),
-                self.thetas,
-                axis=-1,
-            )
-
-        return 4 / np.pi * REWS, 4 / np.pi * dREWSdCt, 4 / np.pi * dREWSdyaw
+        )

@@ -1,6 +1,7 @@
 import numpy as np
 from mit_yaw_induction_wake_model import Turbine
 from mit_yaw_induction_wake_model import REWS as REWS_methods
+from mit_yaw_induction_wake_model import Superposition
 
 
 class Windfarm:
@@ -28,6 +29,7 @@ class GradWindfarm:
         Cts,
         yaws,
         REWS="area",
+        summation="linear",
         sigmas=None,
         kwts=None,
         induction_eps=0.000001,
@@ -50,6 +52,19 @@ class GradWindfarm:
         else:
             raise ValueError(f"REWS {REWS} not found.")
 
+        if summation == "linear":
+            self.summation_method = Superposition.Linear()
+        elif summation == "quadratic":
+            raise NotImplementedError
+        elif summation == "linearniayifar":
+            raise NotImplementedError
+        elif summation == "quadraticniayifar":
+            raise NotImplementedError
+        elif summation == "zong":
+            raise NotImplementedError
+        else:
+            raise ValueError(f"Wake summation method {summation} not found.")
+
     def wsp(self, x, y, z=0, ignore=[]):
         dus, ddudCts, ddudyaws = [], [], []
         for turbine in self.turbines:
@@ -70,7 +85,43 @@ class GradWindfarm:
         return U, dUdCt, dUdyaw
 
     def REWS_at_rotors(self):
-        return self.REWS_method.grad_REWS_at_rotors(self)
+        # Get turbine locations
+        N = len(self.turbines)
+        X_t = np.array([turbine.x for turbine in self.turbines])
+        Y_t = np.array([turbine.y for turbine in self.turbines])
+
+        # Define gridpoints to sample based on REWS method.
+        Xs, Ys, Zs = self.REWS_method.grid_points(X_t, Y_t)
+
+        deficits, ddeficitdCts, ddeficitdyaws = (
+            np.zeros((N, *Xs.shape)),
+            np.zeros((N, *Xs.shape)),
+            np.zeros((N, *Xs.shape)),
+        )
+        for i, turbine in enumerate(self.turbines):
+            (
+                deficits[i, :],
+                ddeficitdCts[i, :],
+                ddeficitdyaws[i, :],
+            ) = turbine.deficit(Xs, Ys, Zs)
+
+        # ignore effect of own wake on self
+        for i in range(N):
+            deficits[i, i, :] = 0
+            ddeficitdCts[i, i, :] = 0
+            ddeficitdyaws[i, i, :] = 0
+
+        # Perform summation
+        U, dUdCts, dUdyaws = self.summation_method(
+            deficits, ddeficitdCts, ddeficitdyaws, self
+        )
+
+        # integrate
+        U = self.REWS_method.integrate(U)
+        dUdCts = self.REWS_method.integrate(dUdCts)
+        dUdyaws = self.REWS_method.integrate(dUdyaws)
+
+        return U, dUdCts, dUdyaws
 
     def turbine_Cp(self):
         REWS, dREWSdCt, dREWSdyaw = self.REWS_at_rotors()
