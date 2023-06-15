@@ -57,7 +57,7 @@ class GradWindfarm:
         elif summation == "quadratic":
             raise NotImplementedError
         elif summation == "linearniayifar":
-            raise NotImplementedError
+            self.summation_method = Superposition.LinearNiayifar()
         elif summation == "quadraticniayifar":
             raise NotImplementedError
         elif summation == "zong":
@@ -112,14 +112,9 @@ class GradWindfarm:
             ddeficitdyaws[i, i, :] = 0
 
         # Perform summation
-        U, dUdCts, dUdyaws = self.summation_method(
-            deficits, ddeficitdCts, ddeficitdyaws, self
+        U, dUdCts, dUdyaws = self.summation_method.calculate_REWS(
+            deficits, ddeficitdCts, ddeficitdyaws, self.REWS_method, self
         )
-
-        # integrate
-        U = self.REWS_method.integrate(U)
-        dUdCts = self.REWS_method.integrate(dUdCts)
-        dUdyaws = self.REWS_method.integrate(dUdyaws)
 
         return U, dUdCts, dUdyaws
 
