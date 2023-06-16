@@ -2,14 +2,29 @@ import numpy as np
 
 
 class Linear:
-    def summation(self, deficits, ddeficitdCts, ddeficitdyaws, windfarm):
+    def summation(self, deficits, windfarm):
+        U = 1 - np.sum(deficits, axis=0)
+
+        return U
+
+    def calculate_REWS(self, deficits, REWS_method, windfarm):
+        U = 1 - np.sum(deficits, axis=0)
+
+        REWS = REWS_method.integrate(U)
+
+        return REWS
+
+    def analytical_REWS(self, *args):
+        return self.summation(*args)
+
+    def summation_grad(self, deficits, ddeficitdCts, ddeficitdyaws, windfarm):
         U = 1 - np.sum(deficits, axis=0)
         dUdCts = -ddeficitdCts
         dUdyaws = -ddeficitdyaws
 
         return U, dUdCts, dUdyaws
 
-    def calculate_REWS(
+    def calculate_REWS_grad(
         self, deficits, ddeficitdCts, ddeficitdyaws, REWS_method, windfarm
     ):
         U = 1 - np.sum(deficits, axis=0)
@@ -22,8 +37,8 @@ class Linear:
 
         return REWS, dREWSdCt, dREWSdyaw
 
-    def analytical_REWS(self, *args):
-        return self.summation(*args)
+    def analytical_REWS_grad(self, *args):
+        return self.summation_grad(*args)
 
 
 class Quadratic:
@@ -31,7 +46,37 @@ class Quadratic:
 
 
 class LinearNiayifar:
-    def summation(self, deficits, ddeficitdCts, ddeficitdyaws, windfarm):
+    def summation(self, deficits, windfarm):
+        REWS = windfarm.REWS
+        # broadcast REWS to the shape of deficits
+        REWS = REWS[(...,) + (np.newaxis,) * (deficits.ndim - 1)]
+
+        U = 1 - np.sum(REWS * deficits, axis=0)
+
+        return U
+
+    def calculate_REWS(self, deficits, REWS_method, windfarm):
+        # Preintegrate the deficits
+        deficits = REWS_method.integrate(deficits)
+
+        return self.analytical_REWS(deficits, windfarm)
+
+    def analytical_REWS(self, deficits, windfarm):
+        Xs = [turbine.x for turbine in windfarm.turbines]
+        N = len(Xs)
+        REWS = np.zeros_like(Xs, dtype=float)
+
+        upstream_idx = []
+        # Iterate through turbines from upstream to downstream
+        for idx in np.argsort(Xs):
+            REWS[idx] = 1 - np.sum(REWS * deficits[:, idx])
+
+            # Determine the effect of each upstream turbine on current turbine
+            upstream_idx.append(idx)
+
+        return REWS
+
+    def summation_grad(self, deficits, ddeficitdCts, ddeficitdyaws, windfarm):
         REWS, dREWSdCt, dREWSdyaw = windfarm.REWS, windfarm.dREWSdCt, windfarm.dREWSdyaw
         # broadcast REWS to the shape of deficits
         REWS = REWS[(...,) + (np.newaxis,) * (deficits.ndim - 1)]
@@ -44,7 +89,7 @@ class LinearNiayifar:
 
         return U, dUdCts, dUdyaws
 
-    def calculate_REWS(
+    def calculate_REWS_grad(
         self, deficits, ddeficitdCts, ddeficitdyaws, REWS_method, windfarm
     ):
         # Preintegrate the deficits
@@ -52,9 +97,11 @@ class LinearNiayifar:
         ddeficitdCts = REWS_method.integrate(ddeficitdCts)
         ddeficitdyaws = REWS_method.integrate(ddeficitdyaws)
 
-        return self.analytical_REWS(deficits, ddeficitdCts, ddeficitdyaws, windfarm)
+        return self.analytical_REWS_grad(
+            deficits, ddeficitdCts, ddeficitdyaws, windfarm
+        )
 
-    def analytical_REWS(self, deficits, ddeficitdCts, ddeficitdyaws, windfarm):
+    def analytical_REWS_grad(self, deficits, ddeficitdCts, ddeficitdyaws, windfarm):
         Xs = [turbine.x for turbine in windfarm.turbines]
         N = len(Xs)
         REWS = np.zeros_like(Xs, dtype=float)

@@ -21,8 +21,7 @@ class TestClass:
 
         assert windfarm_anal.analytical == True
         assert windfarm_num.analytical == False
-    
-    
+
     def test_analytical_REWS(self, summation):
         windfarm_anal = Windfarm.GradWindfarm(
             Xs, Ys, Cts, yaws, REWS="line", summation=summation
@@ -31,6 +30,12 @@ class TestClass:
             Xs, Ys, Cts, yaws, REWS="line", summation=summation, numerical=True
         )
 
-        np.testing.assert_array_almost_equal(windfarm_anal.REWS, windfarm_num.REWS, decimal=5)
-        np.testing.assert_array_almost_equal(windfarm_anal.dREWSdCt, windfarm_num.dREWSdCt, decimal=5)
-        np.testing.assert_array_almost_equal(windfarm_anal.dREWSdyaw, windfarm_num.dREWSdyaw, decimal=5)
+        np.testing.assert_array_almost_equal(
+            windfarm_anal.REWS, windfarm_num.REWS, decimal=5
+        )
+        np.testing.assert_array_almost_equal(
+            windfarm_anal.dREWSdCt, windfarm_num.dREWSdCt, decimal=5
+        )
+        np.testing.assert_array_almost_equal(
+            windfarm_anal.dREWSdyaw, windfarm_num.dREWSdyaw, decimal=5
+        )

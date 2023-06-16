@@ -10,58 +10,67 @@ class Gaussian:
         self.sigma = sigma  # Default values from paper
         self.kw = kw  # Default values from paper
 
+    def centerline(self, x, dx=0.5):
+        """
+        Solves Eq. C4.
+        """
+        xmax = np.max(x)
+        _x = np.arange(0, max(xmax, 2 * dx), dx)
+        d = self.wake_diameter(_x)
+
+        dv = -0.5 / d**2 * (1 + erf(_x / (np.sqrt(2) / 2)))
+        _yc_temp = cumtrapz(-dv, dx=dx, initial=0)
+
+        yc_temp = np.interp(x, _x, _yc_temp, left=0)
+
+        return yc_temp * self.v4
+
     def wake_diameter(self, x):
         """
         Solves the normalized far-wake diameter (between C1 and C2)
         """
         return 1 + self.kw * np.log(1 + np.exp(2 * x - 1))
 
-    def _du(self, x):
+    def du(self, x, wake_diameter=None):
         """
         Solves Eq. C2
         """
-        return (
-            0.5
-            * (self.Uamb - self.u4)
-            / self.wake_diameter(x) ** 2
-            * (1 + erf(x / (np.sqrt(2) / 2)))
-        )
+        d = self.wake_diameter(x) if wake_diameter is None else wake_diameter
 
-    def _dv(self, x):
-        """
-        Solves Eq. C3.
-        """
-        return (
-            -0.5
-            * self.v4
-            / self.wake_diameter(x) ** 2
-            * (1 + erf(x / (np.sqrt(2) / 2)))
-        )
-
-    def centerline(self, x, dx=0.01):
-        """
-        Solves Eq. C4.
-        """
-        xmax = np.max(x)
-        _x = np.arange(0, xmax, dx)
-        dv = self._dv(_x)
-        _yc = cumtrapz(-dv, dx=dx, initial=0)
-
-        return np.interp(x, _x, _yc)
+        du = 0.5 * (1 - self.u4) / d**2 * (1 + erf(x / (np.sqrt(2) / 2)))
+        return du
 
     def deficit(self, x, y, z=0):
         """
         Solves Eq. C1
         """
-        return (
-            self._du(x)
-            * self.D**2
+        d = self.wake_diameter(x)
+        yc = self.centerline(x)
+        du = self.du(x, wake_diameter=d)
+        deficit_ = (
+            1
             / (8 * self.sigma**2)
-            * np.exp(
-                -((y - self.centerline(x)) ** 2 + z**2)
-                / (2 * self.sigma**2 * self.wake_diameter(x) ** 2)
-            )
+            * np.exp(-(((y - yc) ** 2 + z**2) / (2 * self.sigma**2 * d**2)))
         )
+
+        return deficit_ * du
+
+    def line_deficit(self, x, y):
+        """
+        Returns the deficit at hub height averaged along a lateral line of
+        length 1, centered at (x, y).
+        """
+
+        d = self.wake_diameter(x)
+        yc = self.centerline(x)
+        du = self.du(x, wake_diameter=d)
+
+        erf_plus = erf((y + 0.5 - yc) / (np.sqrt(2) * self.sigma * d))
+        erf_minus = erf((y - 0.5 - yc) / (np.sqrt(2) * self.sigma * d))
+
+        deficit_ = np.sqrt(2 * np.pi) * d / (16 * self.sigma) * (erf_plus - erf_minus)
+
+        return deficit_ * du
 
 
 class GradGaussian(Gaussian):

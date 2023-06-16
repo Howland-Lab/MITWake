@@ -2,7 +2,7 @@ from mit_yaw_induction_wake_model import Rotor, Wake
 
 
 class BasicTurbine:
-    def __init__(self, Ct, yaw, x=0, y=0, sigma=0.25, kw=0.07):
+    def __init__(self, Ct, yaw, x=0, y=0, sigma=0.25, kw=0.07, induction_eps=0.000001):
         self.x, self.y = x, y
         self.Ct, self.yaw = Ct, yaw
         self.a, u4, v4 = Rotor.yawthrust(Ct, yaw)
