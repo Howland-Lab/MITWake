@@ -22,6 +22,9 @@ class Linear:
 
         return REWS, dREWSdCt, dREWSdyaw
 
+    def analytical_REWS(self, *args):
+        return self.summation(*args)
+
 
 class Quadratic:
     pass
@@ -49,6 +52,9 @@ class LinearNiayifar:
         ddeficitdCts = REWS_method.integrate(ddeficitdCts)
         ddeficitdyaws = REWS_method.integrate(ddeficitdyaws)
 
+        return self.analytical_REWS(deficits, ddeficitdCts, ddeficitdyaws, windfarm)
+
+    def analytical_REWS(self, deficits, ddeficitdCts, ddeficitdyaws, windfarm):
         Xs = [turbine.x for turbine in windfarm.turbines]
         N = len(Xs)
         REWS = np.zeros_like(Xs, dtype=float)
@@ -70,6 +76,7 @@ class LinearNiayifar:
                 ] - np.sum(dREWSdyaws[idx_u, :] * deficits[:, idx])
 
             upstream_idx.append(idx)
+
         return REWS, dREWSdCts, dREWSdyaws
 
 

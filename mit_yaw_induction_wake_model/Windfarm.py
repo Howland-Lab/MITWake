@@ -32,6 +32,7 @@ class GradWindfarm:
         summation="linear",
         sigmas=None,
         kwts=None,
+        numerical=False,
         induction_eps=0.000001,
         REWS_params={},
     ):
@@ -65,6 +66,12 @@ class GradWindfarm:
         else:
             raise ValueError(f"Wake summation method {summation} not found.")
 
+        self.analytical = (
+            REWS == "line"
+            and summation in ["linear", "linearniayifar"]
+            and not numerical
+        )
+
         self.REWS, self.dREWSdCt, self.dREWSdyaw = self._REWS_at_rotors()
 
     def wsp(self, x, y, z=0):
@@ -89,6 +96,41 @@ class GradWindfarm:
         return U, dUdCt, dUdyaw
 
     def _REWS_at_rotors(self):
+        if self.analytical:
+            return self._REWS_at_rotors_analytical()
+        else:
+            return self._REWS_at_rotors_numerical()
+
+    def _REWS_at_rotors_analytical(self):
+        N = len(self.turbines)
+        Xs = np.array([turbine.x for turbine in self.turbines])
+        Ys = np.array([turbine.y for turbine in self.turbines])
+
+        deficits, ddeficitdCts, ddeficitdyaws = (
+            np.zeros((N, N)),
+            np.zeros((N, N)),
+            np.zeros((N, N)),
+        )
+        for i, turbine in enumerate(self.turbines):
+            (
+                deficits[i, :],
+                ddeficitdCts[i, :],
+                ddeficitdyaws[i, :],
+            ) = turbine.wake.line_deficit(Xs - turbine.x, Ys - turbine.y)
+
+        # ignore effect of own wake on self
+        np.fill_diagonal(deficits, 0)
+        np.fill_diagonal(ddeficitdCts, 0)
+        np.fill_diagonal(ddeficitdyaws, 0)
+
+        # Wake summation
+        U, dUdCts, dUdyaws = self.summation_method.analytical_REWS(
+            deficits, ddeficitdCts, ddeficitdyaws, self
+        )
+
+        return U, dUdCts, dUdyaws
+
+    def _REWS_at_rotors_numerical(self):
         # Get turbine locations
         N = len(self.turbines)
         X_t = np.array([turbine.x for turbine in self.turbines])
