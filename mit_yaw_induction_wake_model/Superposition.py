@@ -2,6 +2,13 @@ import numpy as np
 
 
 class Linear:
+    def summation(self, deficits, ddeficitdCts, ddeficitdyaws, windfarm):
+        U = 1 - np.sum(deficits, axis=0)
+        dUdCts = -ddeficitdCts
+        dUdyaws = -ddeficitdyaws
+
+        return U, dUdCts, dUdyaws
+
     def calculate_REWS(
         self, deficits, ddeficitdCts, ddeficitdyaws, REWS_method, windfarm
     ):
@@ -21,6 +28,19 @@ class Quadratic:
 
 
 class LinearNiayifar:
+    def summation(self, deficits, ddeficitdCts, ddeficitdyaws, windfarm):
+        REWS, dREWSdCt, dREWSdyaw = windfarm.REWS, windfarm.dREWSdCt, windfarm.dREWSdyaw
+        # broadcast REWS to the shape of deficits
+        REWS = REWS[(...,) + (np.newaxis,) * (deficits.ndim - 1)]
+        dREWSdCt = dREWSdCt[(...,) + (np.newaxis,) * (deficits.ndim - 1)]
+        dREWSdyaw = dREWSdyaw[(...,) + (np.newaxis,) * (deficits.ndim - 1)]
+
+        U = 1 - np.sum(REWS * deficits, axis=0)
+        dUdCts = -(np.sum(dREWSdCt * deficits, axis=1) + REWS * ddeficitdCts)
+        dUdyaws = -(np.sum(dREWSdyaw * deficits, axis=1) + REWS * ddeficitdyaws)
+
+        return U, dUdCts, dUdyaws
+
     def calculate_REWS(
         self, deficits, ddeficitdCts, ddeficitdyaws, REWS_method, windfarm
     ):

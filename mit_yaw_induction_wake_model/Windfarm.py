@@ -11,7 +11,7 @@ class Windfarm:
     def wsp(self, x, y, z=0, ignore=[]):
         raise NotImplementedError
 
-    def REWS_at_rotors(self, r_disc=20, theta_disc=50):
+    def _REWS_at_rotors(self, r_disc=20, theta_disc=50):
         raise NotImplementedError
 
     def turbine_Cp(self):
@@ -65,26 +65,30 @@ class GradWindfarm:
         else:
             raise ValueError(f"Wake summation method {summation} not found.")
 
-    def wsp(self, x, y, z=0, ignore=[]):
-        dus, ddudCts, ddudyaws = [], [], []
-        for turbine in self.turbines:
-            du, ddudCt, ddudyaw = turbine.deficit(x, y, FOR="met")
-            dus.append(du)
-            ddudCts.append(ddudCt)
-            ddudyaws.append(ddudyaw)
-        for idx in ignore:
-            dus[idx] = np.zeros_like(dus[idx])
-            ddudCts[idx] = np.zeros_like(ddudCts[idx])
-            ddudyaws[idx] = np.zeros_like(ddudyaws[idx])
+        self.REWS, self.dREWSdCt, self.dREWSdyaw = self._REWS_at_rotors()
 
-        # Linear summation
-        U = 1 - np.sum(dus, axis=0)
-        dUdCt = -np.array(ddudCts)
-        dUdyaw = -np.array(ddudyaws)
+    def wsp(self, x, y, z=0):
+        N = len(self.turbines)
+        x, y, z = np.array(x), np.array(y), np.array(z)
+        deficits, ddeficitdCts, ddeficitdyaws = (
+            np.zeros((N, *x.shape)),
+            np.zeros((N, *x.shape)),
+            np.zeros((N, *x.shape)),
+        )
+        for i, turbine in enumerate(self.turbines):
+            (
+                deficits[i, :],
+                ddeficitdCts[i, :],
+                ddeficitdyaws[i, :],
+            ) = turbine.deficit(x, y, z)
+
+        U, dUdCt, dUdyaw = self.summation_method.summation(
+            deficits, ddeficitdCts, ddeficitdyaws, self
+        )
 
         return U, dUdCt, dUdyaw
 
-    def REWS_at_rotors(self):
+    def _REWS_at_rotors(self):
         # Get turbine locations
         N = len(self.turbines)
         X_t = np.array([turbine.x for turbine in self.turbines])
@@ -112,15 +116,13 @@ class GradWindfarm:
             ddeficitdyaws[i, i, :] = 0
 
         # Perform summation
-        U, dUdCts, dUdyaws = self.summation_method.calculate_REWS(
+        REWS, dREWSdCts, dREWSdyaws = self.summation_method.calculate_REWS(
             deficits, ddeficitdCts, ddeficitdyaws, self.REWS_method, self
         )
 
-        return U, dUdCts, dUdyaws
+        return REWS, dREWSdCts, dREWSdyaws
 
     def turbine_Cp(self):
-        REWS, dREWSdCt, dREWSdyaw = self.REWS_at_rotors()
-
         a = np.array([x.a for x in self.turbines])
         Ct = np.array([x.Ct for x in self.turbines])
 
@@ -129,18 +131,18 @@ class GradWindfarm:
 
         yaw = np.array([x.yaw for x in self.turbines])
 
-        Cp = Ct * ((1 - a) * np.cos(yaw) * REWS) ** 3
+        Cp = Ct * ((1 - a) * np.cos(yaw) * self.REWS) ** 3
 
-        temp = 3 * Ct * ((1 - a) * np.cos(yaw) * REWS) ** 2
+        temp = 3 * Ct * ((1 - a) * np.cos(yaw) * self.REWS) ** 2
         dCpdCt = (
-            np.diag(((1 - a) * np.cos(yaw) * REWS) ** 3)
-            + temp * (1 - a) * np.cos(yaw) * dREWSdCt
-            - temp * np.cos(yaw) * REWS * dadCt
+            np.diag(((1 - a) * np.cos(yaw) * self.REWS) ** 3)
+            + temp * (1 - a) * np.cos(yaw) * self.dREWSdCt
+            - temp * np.cos(yaw) * self.REWS * dadCt
         )
         dCpdyaw = (
-            temp * (1 - a) * np.cos(yaw) * dREWSdyaw
-            - temp * np.cos(yaw) * REWS * dadyaw
-            - temp * (1 - a) * np.sin(yaw) * np.diag(REWS)
+            temp * (1 - a) * np.cos(yaw) * self.dREWSdyaw
+            - temp * np.cos(yaw) * self.REWS * dadyaw
+            - temp * (1 - a) * np.sin(yaw) * np.diag(self.REWS)
         )
         return Cp, dCpdCt, dCpdyaw
 

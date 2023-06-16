@@ -12,7 +12,7 @@ yaws = np.deg2rad([24, 10, 0])
 def test_windfarm_point_linear():
     windfarm = Windfarm.GradWindfarm(X, Y, Cts, yaws, REWS="point")
 
-    REWS, _dREWSdCt, _dREWSdyaw = windfarm.REWS_at_rotors()
+    REWS, _dREWSdCt, _dREWSdyaw = windfarm._REWS_at_rotors()
 
     Cp, _dCpdCt, _dCpdyaw = windfarm.turbine_Cp()
 
@@ -25,7 +25,7 @@ def test_windfarm_point_linear():
 def test_windfarm_line_linear():
     windfarm = Windfarm.GradWindfarm(X, Y, Cts, yaws, REWS="line")
 
-    REWS, _dREWSdCt, _dREWSdyaw = windfarm.REWS_at_rotors()
+    REWS, _dREWSdCt, _dREWSdyaw = windfarm._REWS_at_rotors()
 
     Cp, _dCpdCt, _dCpdyaw = windfarm.turbine_Cp()
 
@@ -38,7 +38,7 @@ def test_windfarm_line_linear():
 def test_windfarm_area_linear():
     windfarm = Windfarm.GradWindfarm(X, Y, Cts, yaws, REWS="area")
 
-    REWS, _dREWSdCt, _dREWSdyaw = windfarm.REWS_at_rotors()
+    REWS, _dREWSdCt, _dREWSdyaw = windfarm._REWS_at_rotors()
 
     Cp, _dCpdCt, _dCpdyaw = windfarm.turbine_Cp()
 
