@@ -23,6 +23,7 @@ class Point:
         """
         Numerically integrate wind speeds sampled at grid point locations
         defined by Point.grid_points.
+
         Args:
             U (np.ndarray): Streamwise wind speeds.
 
@@ -66,6 +67,7 @@ class Line:
         """
         Numerically integrate wind speeds sampled at grid point locations
         defined by Point.grid_points.
+
         Args:
             U (np.ndarray): Streamwise wind speeds.
 
@@ -115,6 +117,7 @@ class Area:
         """
         Numerically integrate wind speeds sampled at grid point locations
         defined by Point.grid_points.
+        
         Args:
             U (np.ndarray): Streamwise wind speeds.
 

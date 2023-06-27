@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from mit_yaw_induction_wake_model import Windfarm
+from MITWake import Windfarm
 
 X = [0, 4, 8]
 Y = [0, -0.5, 0.5]

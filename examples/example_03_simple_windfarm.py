@@ -1,6 +1,6 @@
 from pathlib import Path
 import numpy as np
-from mit_yaw_induction_wake_model import Windfarm
+from MITWake import Windfarm
 
 import matplotlib.pyplot as plt
 import seaborn as sns

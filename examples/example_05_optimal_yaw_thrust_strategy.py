@@ -6,7 +6,7 @@ import pandas as pd
 from scipy import optimize
 from tqdm import tqdm
 
-from mit_yaw_induction_wake_model import Windfarm
+from MITWake import Windfarm
 
 FIGDIR = Path("fig")
 FIGDIR.mkdir(parents=True, exist_ok=True)

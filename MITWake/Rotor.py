@@ -173,6 +173,7 @@ def yawthrust(
     Ctprime: float, yaw: float, Uamb=1.0, eps=0.000001
 ) -> Tuple[float, float, float]:
     """Solves yawed-actuator disk model in Eq. 2.15.
+    
     Args:
         Ctprime (float): Rotor thrust coefficient.
         yaw (float): Rotor yaw angle (radians).

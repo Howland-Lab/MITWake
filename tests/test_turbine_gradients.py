@@ -1,5 +1,5 @@
 import numpy as np
-from mit_yaw_induction_wake_model import Turbine
+from MITWake import Turbine
 import pytest
 
 Ct = 2
