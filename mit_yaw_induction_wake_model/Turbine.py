@@ -1,4 +1,8 @@
-from typing import Literal
+# typing.Literal was introduced in Python3.8
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 from mit_yaw_induction_wake_model import Rotor, Wake
 import numpy as np
 

@@ -1,4 +1,9 @@
-from typing import List, Literal, Optional, Tuple
+# typing.Literal was introduced in Python3.8
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
+from typing import List, Optional, Tuple
 
 import numpy as np
 
