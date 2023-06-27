@@ -1,16 +1,17 @@
+from typing import Optional, Tuple
 import numpy as np
 from scipy.special import erf
 from scipy.integrate import cumtrapz
 
 
 class Gaussian:
-    def __init__(self, u4, v4, sigma=0.25, kw=0.07):
+    def __init__(self, u4: float, v4: float, sigma=0.25, kw=0.07) -> None:
         self.u4 = u4
         self.v4 = v4
         self.sigma = sigma  # Default values from paper
         self.kw = kw  # Default values from paper
 
-    def centerline(self, x, dx=0.5):
+    def centerline(self, x: np.ndarray, dx=0.5) -> np.ndarray:
         """
         Solves Eq. C4.
         """
@@ -25,13 +26,13 @@ class Gaussian:
 
         return yc_temp * self.v4
 
-    def wake_diameter(self, x):
+    def wake_diameter(self, x: np.ndarray) -> np.ndarray:
         """
         Solves the normalized far-wake diameter (between C1 and C2)
         """
         return 1 + self.kw * np.log(1 + np.exp(2 * x - 1))
 
-    def du(self, x, wake_diameter=None):
+    def du(self, x: np.ndarray, wake_diameter: Optional[float] = None) -> np.ndarray:
         """
         Solves Eq. C2
         """
@@ -40,7 +41,7 @@ class Gaussian:
         du = 0.5 * (1 - self.u4) / d**2 * (1 + erf(x / (np.sqrt(2) / 2)))
         return du
 
-    def deficit(self, x, y, z=0):
+    def deficit(self, x: np.ndarray, y: np.ndarray, z=0) -> np.ndarray:
         """
         Solves Eq. C1
         """
@@ -55,7 +56,7 @@ class Gaussian:
 
         return deficit_ * du
 
-    def line_deficit(self, x, y):
+    def line_deficit(self, x: np.array, y: np.array):
         """
         Returns the deficit at hub height averaged along a lateral line of
         length 1, centered at (x, y).
@@ -74,7 +75,17 @@ class Gaussian:
 
 
 class GradGaussian(Gaussian):
-    def __init__(self, u4, v4, dudCt, dudyaw, dvdCt, dvdyaw, sigma=0.25, kw=0.07):
+    def __init__(
+        self,
+        u4: float,
+        v4: float,
+        dudCt: float,
+        dudyaw: float,
+        dvdCt: float,
+        dvdyaw: float,
+        sigma=0.25,
+        kw=0.07,
+    ) -> None:
         self.u4 = u4
         self.v4 = v4
         self.dudCt = dudCt
@@ -85,7 +96,7 @@ class GradGaussian(Gaussian):
         self.sigma = sigma  # Default values from paper
         self.kw = kw  # Default values from paper
 
-    def centerline(self, x, dx=0.5):
+    def centerline(self, x: np.array, dx=0.5) -> Tuple[np.array, np.array, np.array]:
         xmax = np.max(x)
         _x = np.arange(0, max(xmax, 2 * dx), dx)
         d = self.wake_diameter(_x)
@@ -100,7 +111,7 @@ class GradGaussian(Gaussian):
 
         return yc_temp * self.v4, dycdCt, dycdyaw
 
-    def du(self, x, wake_diameter=None):
+    def du(self, x: np.array, wake_diameter=None):
         d = self.wake_diameter(x) if wake_diameter is None else wake_diameter
 
         du = 0.5 * (1 - self.u4) / d**2 * (1 + erf(x / (np.sqrt(2) / 2)))
@@ -108,7 +119,9 @@ class GradGaussian(Gaussian):
         dudyaw = -self.dudyaw * du / (1 - self.u4)
         return du, dudCt, dudyaw
 
-    def deficit(self, x, y, z=0):
+    def deficit(
+        self, x: np.array, y: np.array, z=0
+    ) -> Tuple[np.array, np.array, np.array]:
         """
         Solves Eq. C1
         """
@@ -130,7 +143,9 @@ class GradGaussian(Gaussian):
 
         return deficit_ * du, ddeficitdCt, ddeficitdyaw
 
-    def line_deficit(self, x, y):
+    def line_deficit(
+        self, x: np.array, y: np.array
+    ) -> Tuple[np.array, np.array, np.array]:
         """
         Returns the deficit at hub height averaged along a lateral line of
         length 1, centered at (x, y).

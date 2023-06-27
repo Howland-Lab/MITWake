@@ -1,15 +1,34 @@
+from typing import List, Tuple
 import numpy as np
 
 
 class Point:
-    def grid_points(self, X_t, Y_t):
+    def grid_points(
+        self, X_t: np.ndarray, Y_t: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Returns the grid points to be sampled given the turbine locations, X_t,
         Y_t
+
+        Args:
+            X_t (ndarray): Streamwise locations of turbines.
+            Y_t (ndarray): Lateral locations of turbines.
+
+        Returns:
+            (ndarray, ndarray, ndarray): X, Y, Z coordinates of grid points.
         """
         return np.expand_dims(X_t, 1), np.expand_dims(Y_t, 1), 0
 
-    def integrate(self, U):
+    def integrate(self, U: np.ndarray) -> np.ndarray:
+        """
+        Numerically integrate wind speeds sampled at grid point locations
+        defined by Point.grid_points.
+        Args:
+            U (np.ndarray): Streamwise wind speeds.
+
+        Returns:
+            np.ndarray: Array of Rotor-averaged wind speeds for each rotor.
+        """
         return np.squeeze(U, -1)
 
 
@@ -19,10 +38,19 @@ class Line:
         self.disc = disc
         self.ys = np.linspace(-0.5, 0.5, disc)
 
-    def grid_points(self, X_t, Y_t):
+    def grid_points(
+        self, X_t: np.ndarray, Y_t: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Returns the grid points to be sampled given the turbine locations, X_t,
         Y_t
+
+        Args:
+            X_t (List[float]): Streamwise locations of turbines.
+            Y_t (List[float]): Lateral locations of turbines.
+
+        Returns:
+            (ndarray, ndarray, ndarray): X, Y, Z coordinates of grid points.
         """
         N_turb = len(X_t)
         X = np.zeros((N_turb, self.disc))
@@ -34,7 +62,17 @@ class Line:
 
         return X, Y, 0
 
-    def integrate(self, U):
+    def integrate(self, U: np.ndarray) -> np.ndarray:
+        """
+        Numerically integrate wind speeds sampled at grid point locations
+        defined by Point.grid_points.
+        Args:
+            U (np.ndarray): Streamwise wind speeds.
+
+        Returns:
+            np.ndarray: Array of Rotor-averaged wind speeds for each rotor.
+        """
+
         return np.trapz(U, self.ys, axis=-1)
 
 
@@ -47,10 +85,19 @@ class Area:
 
         self.r_mesh, self.theta_mesh = np.meshgrid(rs, self.thetas)
 
-    def grid_points(self, X_t, Y_t):
+    def grid_points(
+        self, X_t: np.ndarray, Y_t: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Returns the grid points to be sampled given the turbine locations, X_t,
         Y_t
+
+        Args:
+            X_t (List[float]): Streamwise locations of turbines.
+            Y_t (List[float]): Lateral locations of turbines.
+
+        Returns:
+            (ndarray, ndarray, ndarray): X, Y, Z coordinates of grid points.
         """
         N_turb = len(X_t)
         X = np.zeros((N_turb, self.theta_disc, self.r_disc))
@@ -64,7 +111,17 @@ class Area:
 
         return X, Y, Z
 
-    def integrate(self, U):
+    def integrate(self, U: np.ndarray) -> np.ndarray:
+        """
+        Numerically integrate wind speeds sampled at grid point locations
+        defined by Point.grid_points.
+        Args:
+            U (np.ndarray): Streamwise wind speeds.
+
+        Returns:
+            np.ndarray: Array of Rotor-averaged wind speeds for each rotor.
+        """
+
         return (
             4
             / np.pi

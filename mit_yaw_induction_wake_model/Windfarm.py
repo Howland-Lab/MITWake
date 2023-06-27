@@ -1,24 +1,28 @@
+from typing import List, Literal, Optional, Tuple
+
 import numpy as np
-from mit_yaw_induction_wake_model import Turbine
+
 from mit_yaw_induction_wake_model import REWS as REWS_methods
-from mit_yaw_induction_wake_model import Superposition
+from mit_yaw_induction_wake_model import Superposition, Turbine
 
 
 class Windfarm:
     def __init__(
         self,
-        xs,
-        ys,
-        Cts,
-        yaws,
-        REWS="area",
-        summation="linear",
-        sigmas=None,
-        kwts=None,
+        xs: List[float],
+        ys: List[float],
+        Cts: List[float],
+        yaws: List[float],
+        REWS: Literal["point", "line", "area"] = "area",
+        summation: Literal[
+            "linear", "quadratic", "linearniayifar", "quadraticniayifar", "zong"
+        ] = "linear",
+        sigmas: Optional[List[float]] = 0.25,
+        kwts: Optional[List[float]] = 0.07,
         numerical=False,
         induction_eps=0.000001,
         REWS_params={},
-    ):
+    ) -> None:
         N = len(xs)
         assert all(N == len(x) for x in [Cts, yaws, ys])
 
@@ -66,7 +70,7 @@ class Windfarm:
 
         self.REWS = self._REWS_at_rotors()
 
-    def wsp(self, x, y, z=0):
+    def wsp(self, x: np.ndarray, y: np.ndarray, z=0) -> np.ndarray:
         N = len(self.turbines)
         x, y, z = np.array(x), np.array(y), np.array(z)
         deficits = np.zeros((N, *x.shape))
@@ -78,13 +82,13 @@ class Windfarm:
 
         return U
 
-    def _REWS_at_rotors(self):
+    def _REWS_at_rotors(self) -> np.ndarray:
         if self.analytical:
             return self._REWS_at_rotors_analytical()
         else:
             return self._REWS_at_rotors_numerical()
 
-    def _REWS_at_rotors_analytical(self):
+    def _REWS_at_rotors_analytical(self) -> np.ndarray:
         N = len(self.turbines)
         Xs = np.array([turbine.x for turbine in self.turbines])
         Ys = np.array([turbine.y for turbine in self.turbines])
@@ -101,7 +105,7 @@ class Windfarm:
 
         return U
 
-    def _REWS_at_rotors_numerical(self):
+    def _REWS_at_rotors_numerical(self) -> np.ndarray:
         # Get turbine locations
         N = len(self.turbines)
         X_t = np.array([turbine.x for turbine in self.turbines])
@@ -123,7 +127,7 @@ class Windfarm:
 
         return REWS
 
-    def turbine_Cp(self):
+    def turbine_Cp(self) -> np.ndarray:
         a = np.array([x.a for x in self.turbines])
         Ct = np.array([x.Ct for x in self.turbines])
 
@@ -134,7 +138,7 @@ class Windfarm:
         temp = 3 * Ct * ((1 - a) * np.cos(yaw) * self.REWS) ** 2
         return Cp
 
-    def total_Cp(self):
+    def total_Cp(self) -> float:
         Cp = self.turbine_Cp()
 
         return np.mean(Cp)
@@ -143,18 +147,20 @@ class Windfarm:
 class GradWindfarm:
     def __init__(
         self,
-        xs,
-        ys,
-        Cts,
-        yaws,
-        REWS="area",
-        summation="linear",
-        sigmas=None,
-        kwts=None,
+        xs: List[float],
+        ys: List[float],
+        Cts: List[float],
+        yaws: List[float],
+        REWS: Literal["point", "line", "area"] = "area",
+        summation: Literal[
+            "linear", "quadratic", "linearniayifar", "quadraticniayifar", "zong"
+        ] = "linear",
+        sigmas: Optional[List[float]] = 0.25,
+        kwts: Optional[List[float]] = 0.07,
         numerical=False,
         induction_eps=0.000001,
         REWS_params={},
-    ):
+    ) -> None:
         N = len(xs)
         assert all(N == len(x) for x in [Cts, yaws, ys])
 
@@ -204,7 +210,9 @@ class GradWindfarm:
 
         self.REWS, self.dREWSdCt, self.dREWSdyaw = self._REWS_at_rotors()
 
-    def wsp(self, x, y, z=0):
+    def wsp(
+        self, x: np.ndarray, y: np.ndarray, z=0
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         N = len(self.turbines)
         x, y, z = np.array(x), np.array(y), np.array(z)
         deficits, ddeficitdCts, ddeficitdyaws = (
@@ -225,13 +233,13 @@ class GradWindfarm:
 
         return U, dUdCt, dUdyaw
 
-    def _REWS_at_rotors(self):
+    def _REWS_at_rotors(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         if self.analytical:
             return self._REWS_at_rotors_analytical()
         else:
             return self._REWS_at_rotors_numerical()
 
-    def _REWS_at_rotors_analytical(self):
+    def _REWS_at_rotors_analytical(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         N = len(self.turbines)
         Xs = np.array([turbine.x for turbine in self.turbines])
         Ys = np.array([turbine.y for turbine in self.turbines])
@@ -260,7 +268,7 @@ class GradWindfarm:
 
         return U, dUdCts, dUdyaws
 
-    def _REWS_at_rotors_numerical(self):
+    def _REWS_at_rotors_numerical(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         # Get turbine locations
         N = len(self.turbines)
         X_t = np.array([turbine.x for turbine in self.turbines])
@@ -294,7 +302,7 @@ class GradWindfarm:
 
         return REWS, dREWSdCts, dREWSdyaws
 
-    def turbine_Cp(self):
+    def turbine_Cp(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         a = np.array([x.a for x in self.turbines])
         Ct = np.array([x.Ct for x in self.turbines])
 
@@ -318,7 +326,7 @@ class GradWindfarm:
         )
         return Cp, dCpdCt, dCpdyaw
 
-    def total_Cp(self):
+    def total_Cp(self) -> Tuple[float, List[float], List[float]]:
         Cp, dCpdCt, dCpdyaw = self.turbine_Cp()
 
         return np.mean(Cp), np.mean(dCpdCt, axis=1), np.mean(dCpdyaw, axis=1)
