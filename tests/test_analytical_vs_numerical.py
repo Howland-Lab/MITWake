@@ -1,5 +1,5 @@
 import numpy as np
-from mit_yaw_induction_wake_model import Windfarm
+from MITWake import Windfarm
 import pytest
 
 Xs = np.array([0, 4, 8])

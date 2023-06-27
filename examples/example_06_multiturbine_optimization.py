@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import optimize
 
-from mit_yaw_induction_wake_model import Windfarm
+from MITWake import Windfarm
 
 FIGDIR = Path("fig")
 FIGDIR.mkdir(parents=True, exist_ok=True)

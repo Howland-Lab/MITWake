@@ -25,6 +25,8 @@ pip install .
 
 For usage examples, refer to the example scripts provided in the `examples` folder.
 
+Documentation can be found at [howland-lab.github.io/MITWake/](https://howland-lab.github.io/MITWake/).
+
 # References
 [^fn1]: Heck, Kirby S., Hannah M. Johlas, and Michael F. Howland. "[Modelling the induction, thrust and power of a yaw-misaligned actuator disk](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/modelling-the-induction-thrust-and-power-of-a-yawmisaligned-actuator-disk/3A34FC48A6BC52A78B6D221C13F4FC3A?utm_campaign=shareaholic&utm_medium=copy_link&utm_source=bookmark)." Journal of Fluid Mechanics 959 (2023): A9.
 [^fn2]: Howland, Michael F., Sanjiva K. Lele, and John O. Dabiri. "[Wind farm power optimization through wake steering](https://www.pnas.org/doi/full/10.1073/pnas.1903680116)." Proceedings of the National Academy of Sciences 116.29 (2019): 14495-14500.

@@ -7,8 +7,8 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 
-from mit_yaw_induction_wake_model import REWS as REWS_methods
-from mit_yaw_induction_wake_model import Superposition, Turbine
+from MITWake import REWS as REWS_methods
+from MITWake import Superposition, Turbine
 
 
 class Windfarm:
