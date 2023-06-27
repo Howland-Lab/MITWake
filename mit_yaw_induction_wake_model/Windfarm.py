@@ -19,12 +19,21 @@ class Windfarm:
         induction_eps=0.000001,
         REWS_params={},
     ):
-        assert all(len(Cts) == len(x) for x in [yaws, xs, ys])
+        N = len(xs)
+        assert all(N == len(x) for x in [Cts, yaws, ys])
 
+        # Convert kwts ans sigmas to list if single value is given
+        if kwts is None or type(kwts) in [int, float]:
+            kwts = N * [kwts]
+
+        if sigmas is None or type(sigmas) in [int, float]:
+            sigmas = N * [sigmas]
+
+        # Iteratively instantiate turbines
         self.turbines = []
-        for Ct, yaw, x, y in zip(Cts, yaws, xs, ys):
+        for Ct, yaw, x, y, kw in zip(Cts, yaws, xs, ys, kwts):
             self.turbines.append(
-                Turbine.BasicTurbine(Ct, yaw, x, y, induction_eps=induction_eps)
+                Turbine.BasicTurbine(Ct, yaw, x, y, induction_eps=induction_eps, kw=kw)
             )
 
         if REWS == "area":
@@ -146,12 +155,23 @@ class GradWindfarm:
         induction_eps=0.000001,
         REWS_params={},
     ):
-        assert all(len(Cts) == len(x) for x in [yaws, xs, ys])
+        N = len(xs)
+        assert all(N == len(x) for x in [Cts, yaws, ys])
 
+        # Convert kwts ans sigmas to list if single value is given
+        if kwts is None or type(kwts) in [int, float]:
+            kwts = N * [kwts]
+
+        if sigmas is None or type(sigmas) in [int, float]:
+            sigmas = N * [sigmas]
+
+        # Iteratively instantiate turbines
         self.turbines = []
-        for Ct, yaw, x, y in zip(Cts, yaws, xs, ys):
+        for Ct, yaw, x, y, kw in zip(Cts, yaws, xs, ys, kwts):
             self.turbines.append(
-                Turbine.GradientTurbine(Ct, yaw, x, y, induction_eps=induction_eps)
+                Turbine.GradientTurbine(
+                    Ct, yaw, x, y, induction_eps=induction_eps, kw=kw
+                )
             )
 
         if REWS == "area":
