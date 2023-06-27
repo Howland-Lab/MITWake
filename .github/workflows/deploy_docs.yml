@@ -1,5 +1,13 @@
 name: Build and Deploy Docs
 
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+  
 on:
   workflow_dispatch:
 
