@@ -11,7 +11,7 @@ class Gaussian:
         self.sigma = sigma  # Default values from paper
         self.kw = kw  # Default values from paper
 
-    def centerline(self, x: np.ndarray, dx=0.5) -> np.ndarray:
+    def centerline(self, x: np.ndarray, dx=0.05) -> np.ndarray:
         """
         Solves Eq. C4.
         """
@@ -30,7 +30,7 @@ class Gaussian:
         """
         Solves the normalized far-wake diameter (between C1 and C2)
         """
-        return 1 + self.kw * np.log(1 + np.exp(2 * x - 1))
+        return 1 + self.kw * np.log(1 + np.exp(2 * (x - 1)))
 
     def du(self, x: np.ndarray, wake_diameter: Optional[float] = None) -> np.ndarray:
         """
@@ -96,13 +96,13 @@ class GradGaussian(Gaussian):
         self.sigma = sigma  # Default values from paper
         self.kw = kw  # Default values from paper
 
-    def centerline(self, x: np.array, dx=0.5) -> Tuple[np.array, np.array, np.array]:
+    def centerline(self, x: np.array, dx=0.05) -> Tuple[np.array, np.array, np.array]:
         xmax = np.max(x)
         _x = np.arange(0, max(xmax, 2 * dx), dx)
         d = self.wake_diameter(_x)
 
         dv = -0.5 / d**2 * (1 + erf(_x / (np.sqrt(2) / 2)))
-        _yc_temp = cumtrapz(-dv, dx=dx, initial=0)
+        _yc_temp = cumtrapz(-dv, _x, initial=0)
 
         yc_temp = np.interp(x, _x, _yc_temp, left=0)
 
