@@ -1,3 +1,10 @@
+"""
+A recreation of Figure 8b with control gradients from:
+
+Heck, Kirby S., Hannah M. Johlas, and Michael F. Howland. "Modelling the
+induction, thrust and power of a yaw-misaligned actuator disk." Journal of Fluid
+Mechanics 959 (2023): A9.
+"""
 from pathlib import Path
 
 import numpy as np
@@ -8,7 +15,7 @@ from MITWake import Turbine
 FIGDIR = Path("fig")
 FIGDIR.mkdir(parents=True, exist_ok=True)
 
-TITLES = ["$\delta U$", "$d\delta U/dC_t$", "$d\delta U/d\gamma$"]
+TITLES = ["$du$", "$ddu/dC_t$", "$ddu/d\gamma$"]
 cmaps = ["YlGnBu_r", "RdYlGn", "RdYlGn"]
 vmins = [None, -0.3, -1]
 vmaxs = [None, 0.3, 1]

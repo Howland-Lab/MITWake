@@ -3,7 +3,6 @@ import numpy as np
 from MITWake import Windfarm
 
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 
 FIGDIR = Path("fig")
@@ -79,41 +78,19 @@ def plot_gradients(grad_list, title_pre, title_post, save):
     plt.close()
 
 
-def jacobian_heatmap(jac, title, save):
-    plt.figure()
-    ax = sns.heatmap(
-        jac,
-        center=0,
-        xticklabels=[f"T{i+1}" for i in range(N)],
-        yticklabels=[f"T{i+1}" for i in range(N)],
-        cmap="RdYlGn",
-    )
-    ax.set(
-        title=title,
-        xlabel="how this turbine...",
-        ylabel="influences this turbine",
-    )
-    plt.savefig(save, dpi=300, bbox_inches="tight")
-    plt.close()
-
-
 if __name__ == "__main__":
     windfarm = Windfarm.GradWindfarm(X, Y, Cts, yaws)
-    N = len(windfarm.turbines)
-
-    xs = np.linspace(-1, 12, 300)
-    ys = np.linspace(-1.5, 1.5, 300)
-
-    xmesh, ymesh = np.meshgrid(xs, ys)
-
-    U, dUdCt, dUdyaw = windfarm.wsp(xmesh, ymesh)
-
-    REWS, dREWSdCt, dREWSdyaw = windfarm.REWS_at_rotors()
 
     Cp, dCpdCt, dCpdyaw = windfarm.turbine_Cp()
 
-    print("REWS:", REWS)
+    print("REWS:", windfarm.REWS)
     print("Cp:", Cp)
+
+    xs = np.linspace(-1, 12, 300)
+    ys = np.linspace(-1.5, 1.5, 300)
+    xmesh, ymesh = np.meshgrid(xs, ys)
+
+    U, dUdCt, dUdyaw = windfarm.wsp(xmesh, ymesh)
 
     plt.figure()
     plot_field(xmesh, ymesh, U, X, Y, yaws, plt.gca(), "YlGnBu_r", title="U")
@@ -129,31 +106,7 @@ if __name__ == "__main__":
 
     plot_gradients(
         dUdyaw,
-        title_pre="$dU/dyaw_{",
+        title_pre="$dU/d\gamma_{",
         title_post="}$",
         save=FIGDIR / "example_03_simple_windfarm_dUdyaw.png",
-    )
-
-    jacobian_heatmap(
-        dREWSdCt,
-        "REWS sensitivity to Ct",
-        FIGDIR / "example_03_simple_windfarm_dREWSdCt.png",
-    )
-
-    jacobian_heatmap(
-        dREWSdyaw,
-        "REWS sensitivity to yaw",
-        FIGDIR / "example_03_simple_windfarm_dREWSdyaw.png",
-    )
-
-    jacobian_heatmap(
-        dCpdCt,
-        "Cp sensitivity to Ct",
-        FIGDIR / "example_03_simple_windfarm_dCpdCt.png",
-    )
-
-    jacobian_heatmap(
-        dCpdyaw,
-        "Cp sensitivity to yaw",
-        FIGDIR / "example_03_simple_windfarm_dCpdyaw.png",
     )
