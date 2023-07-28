@@ -9,9 +9,75 @@ import numpy as np
 
 from MITWake import REWS as REWS_methods
 from MITWake import Superposition, Turbine
+from .BaseClasses import (
+    WindfarmBase,
+    RotorBase,
+    WakeBase,
+    SuperpositionBase,
+    WindfieldBase,
+)
 
 
-class Windfarm:
+class Windfarm(WindfarmBase):
+    def __init__(
+        self,
+        rotors: List[RotorBase],
+        wakes: List[WakeBase],
+        superposition: SuperpositionBase,
+        windfield: WindfieldBase,
+    ):
+        assert len(rotors) == len(wakes)
+
+        self.N = len(rotors)
+
+        self.rotors = rotors
+        self.wakes = wakes
+        self.superposition = superposition
+        self.windfield = windfield
+
+    def initialize(self, setpoints: List):
+        """
+        Initialize each rotor and wake from upstream to downstream
+        """
+        idx_upstream = []
+        for idx in np.argsort([rotor.x for rotor in self.rotors]):
+            rotor, wake = self.rotors[idx], self.wake[idx]
+            xp, yp, zp = rotor.gridpoints(*setpoints[idx])
+
+            # To do: sample base wind field from self.windfield
+            basewindfield = np.ones_like(xp)
+
+            Up = self.wsp(xp, yp, zp, indices=idx_upstream)
+
+            rotor.initialize(*setpoints[idx], windfield=Up)
+            wake.initialize(rotor)
+
+            idx_upstream.append(idx)
+
+    def wsp(self, x: np.ndarray, y: np.ndarray, z=0.0, indices=None) -> np.ndarray:
+        indices = indices or list(range(self.N))
+        M = len(indices)
+        x, y, z = np.array(x), np.array(y), np.array(z)
+        deficits = np.zeros((M, *x.shape))
+
+        for idx in indices:
+            deficits[idx, :] = self.wakes[idx].deficit(
+                x - self.rotors[idx].x, y - self.rotors[idx].y, z - self.rotors[idx].z
+            )
+
+        # To do: the summation with base flow
+        # U = self.superposition.summation(deficits, self)
+        U = 1 - np.sum(deficits, axis=0)
+
+        return U
+
+    # Hello, this is Jaime at the end of a friday (28-7-2023). THis should hopefully work
+    # but I am not sure as I ahvent tested it. Try running the wind farm using
+    # ActuatorDisk for a small wind farm (perhaps from the xamples), then try
+    # the same thing again with BEM.
+
+
+class Windfarm_old:
     def __init__(
         self,
         xs: List[float],

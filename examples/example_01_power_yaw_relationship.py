@@ -10,12 +10,14 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
-from MITWake import Rotor
+from MITWake.Rotor.ActuatorDisk import ActuatorDisk
 
 FIGDIR = Path("fig")
 FIGDIR.mkdir(parents=True, exist_ok=True)
 
 if __name__ == "__main__":
+    rotor = ActuatorDisk()
+
     yaws = np.deg2rad(np.linspace(0, 30, 50))
     Ctprimes = [0.2, 0.4, 0.8, 1.2, 1.6, 2.0]
 
@@ -25,8 +27,13 @@ if __name__ == "__main__":
 
     for i, Ct in enumerate(Ctprimes):
         color = plt.cm.viridis(i / len(Ctprimes))
-        a, u, v = Rotor.yawthrust(Ct, yaws)
+
+        rotor.initialize(Ct, yaws)
+        a, u, v = rotor.a(), rotor.u4(), rotor.v4()
+
+        # Equation 2.17 from Heck, 2023
         Pratio = ((1 + 0.25 * Ct) * (1 - a) * np.cos(yaws)) ** 3
+
         plt.plot(np.rad2deg(yaws), Pratio, c=color, label=f"$C_T'$={Ct}")
 
     plt.legend()

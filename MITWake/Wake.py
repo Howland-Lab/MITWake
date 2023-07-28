@@ -2,14 +2,20 @@ from typing import Optional, Tuple
 import numpy as np
 from scipy.special import erf
 from scipy.integrate import cumtrapz
+from .BaseClasses import WakeBase, RotorBase
 
 
-class Gaussian:
-    def __init__(self, u4: float, v4: float, sigma=0.25, kw=0.07) -> None:
-        self.u4 = u4
-        self.v4 = v4
+class Gaussian(WakeBase):
+    def __init__(self, sigma=0.25, kw=0.07) -> None:
         self.sigma = sigma  # Default values from paper
         self.kw = kw  # Default values from paper
+
+    def initialize(self, rotor):
+        self.x = rotor.x
+        self.y = rotor.y
+        self.z = rotor.z
+        self.u4 = rotor.u4()
+        self.v4 = rotor.v4()
 
     def centerline(self, x: np.ndarray, dx=0.05) -> np.ndarray:
         """

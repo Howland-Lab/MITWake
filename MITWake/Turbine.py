@@ -5,34 +5,27 @@ except ImportError:
     from typing_extensions import Literal
 from MITWake import Rotor, Wake
 import numpy as np
+from .BaseClasses import RotorBase, WakeBase
 
 
-class BasicTurbine:
-    def __init__(
-        self,
-        Ct: float,
-        yaw: float,
-        x=0.0,
-        y=0.0,
-        sigma=0.25,
-        kw=0.07,
-        induction_eps=0.000001,
-    ) -> None:
-        """
+class TurbineWake:
+    def __init__(self, turbine: RotorBase, wake: WakeBase) -> None:
+        """_summary_
 
         Args:
-            Ct (float): Rotor thrust coefficient.
-            yaw (float): Rotor yaw angle (radians).
-            x (float): Longitudinal turbine position. Defaults to 0.0.
-            y (float): Lateral turbine position. Defaults to 0.0.
-            sigma (float): Gaussian wake proportionality constant. Defaults to 0.25.
-            kw (float): Wake spreading parameter. Defaults to 0.07.
-            induction_eps (float): Convergence tolerance. Defaults to 0.000001.
+            turbine (RotorBase): _description_
+            wake (WakeBase): _description_
         """
-        self.x, self.y = x, y
-        self.Ct, self.yaw = Ct, yaw
-        self.a, u4, v4 = Rotor.yawthrust(Ct, yaw, eps=induction_eps)
-        self.wake = Wake.Gaussian(u4, v4, sigma, kw)
+        # sigma=0.25,
+        # kw=0.07,
+        # induction_eps=0.000001,
+
+        self.turbine = turbine
+        self.wake = wake
+
+    def initialize(self, *args, **kwargs):
+        self.turbine.initialize(*args, **kwargs)
+        self.wake.initialize(self.turbine)
 
     def deficit(
         self, x: np.ndarray, y: np.ndarray, z=0, FOR: Literal["met", "local"] = "met"
@@ -72,12 +65,9 @@ class GradientTurbine:
         induction_eps=0.000001,
     ):
         """
-        Args:
-            Ct (float): Rotor thrust coefficient.
-            yaw (float): Rotor yaw angle (radians).
-            x (float): Longitudinal turbine position. Defaults to 0.0.
-            y (float): Lateral turbine position. Defaults to 0.0.
-            sigma (float): Gaussian wake proportionality constant. Defaults to 0.25.
+        Args:      # sigma=0.25,
+        # kw=0.07,
+        # induction_eps=0.000001,nt. Defaults to 0.25.
             kw (float): Wake spreading parameter. Defaults to 0.07.
             induction_eps (float): Convergence tolerance. Defaults to 0.000001.
         """

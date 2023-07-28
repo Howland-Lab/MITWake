@@ -14,6 +14,7 @@ matplotlib = "^3.4"
 pandas = ">=1.2.1, <1.3.1"
 tqdm = "^4.65.0"
 typing-extensions = "^4.6.3"
+mit-bem = {git = "git@github.com:jaimeliew1/BEM.git"}
 
 
 [tool.poetry.dev-dependencies]

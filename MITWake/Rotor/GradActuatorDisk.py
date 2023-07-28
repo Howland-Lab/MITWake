@@ -3,100 +3,60 @@ Implementation of the yaw-thrust actuator disk model as described in 'Modelling
 the induction, thrust and power of a yaw-misaligned actuator disk' Heck et al.
 2023.
 """
-from typing import Callable, Tuple
+from typing import Tuple
 import numpy as np
+from BaseClass import RotorBase
+from Utilities import fixedpointiteration
 
 
-def fixedpointiteration(
-    f: Callable[[np.ndarray, any], np.ndarray],
-    x0: np.ndarray,
-    args=(),
-    eps=0.000001,
-    maxiter=100,
-) -> np.ndarray:
-    """
-    Performs fixed-point iteration on function f until residuals converge or max
-    iterations is reached.
+class ActuatorDisk(RotorBase):
+    def __init__(self, REWS_method):
+        self.REWS_method = REWS_method
 
-    Args:
-        f (Callable): residual function of form f(x, *args) -> np.ndarray
-        x0 (np.ndarray): Initial guess
-        args (tuple): arguments to pass to residual function. Defaults to ().
-        eps (float): Convergence tolerance. Defaults to 0.000001.
-        maxiter (int): Maximum number of iterations. Defaults to 100.
+    def gridpoints(self, yaw):
+        return self.REWS_method.grid_points(0, 0)
 
-    Raises:
-        ValueError: Max iterations reached.
+    def initialize(self, windfield, Ctprime, yaw, eps=0.000001):
+        """Solves yawed-actuator disk model in Eq. 2.15.
 
-    Returns:
-        np.ndarray: Solution to residual function.
-    """
-    for _ in range(maxiter):
-        residuals = f(x0, *args)
+        Args:
+            Windfield (ndarray): Longitudinal wind speed sampled at grid points.
+            Ctprime (float): Rotor thrust coefficient.
+            yaw (float): Rotor yaw angle (radians).
+            Uamb (float): Ambient wind velocity. Defaults to 1.0.
+            eps (float): Convergence tolerance. Defaults to 0.000001.
 
-        x0 += residuals
-        if np.abs(residuals).max() < eps:
-            break
-    else:
-        raise ValueError("max iterations reached.")
+        Returns:
+            Tuple[float, float, float]: induction and outlet velocities.
+        """
+        self._Ctprime, self._yaw = Ctprime, yaw
 
-    return x0
+        self._REWS = self.REWS_method.integrate(windfield)
 
+        self._a, self._u4, self._v4 = None  # !!!!?!?!?!?
 
-def yawthrustlimited(
-    Ctprime: float, yaw: float, Uamb=1.0
-) -> Tuple[float, float, float]:
-    """
-    Solves the limiting case when v_4 << u_4. (Eq. 2.19, 2.20). Also takes Numpy
-    array arguments.
+    def REWS(self):
+        return self._REWS
 
-    Args:
-        Ctprime (float): Rotor thrust coefficient.
-        yaw (float): Rotor yaw angle (radians).
-        Uamb (float): Ambient wind velocity. Defaults to 1.0.
+    def Cp(self):
+        Cp = self._Ctprime * ((1 - self._a) * np.cos(self._yaw) * self._REWS) ** 3
+        return Cp
 
-    Returns:
-        Tuple[float, float, float]: induction and outlet velocities.
-    """
-    a = Ctprime * np.cos(yaw) ** 2 / (4 + Ctprime * np.cos(yaw) ** 2)
-    u4 = Uamb * (4 - Ctprime * np.cos(yaw) ** 2) / (4 + Ctprime * np.cos(yaw) ** 2)
-    v4 = Uamb * (
-        -(4 * Ctprime * np.sin(yaw) * np.cos(yaw) ** 2)
-        / (4 + Ctprime * np.cos(yaw) ** 2) ** 2
-    )
+    def Ct(self):
+        Ct = (1 - self._a) ** 2 * np.cos(self._yaw) ** 2 * self._Ctprime
+        return Ct
 
-    return a, u4, v4
+    def Ctprime(self):
+        return self._Ctprime
 
+    def a(self):
+        return self._a
 
-def _yawthrust_residual(
-    x: np.ndarray, Ctprime: float, yaw: float, Uamb=1.0
-) -> np.ndarray:
-    """
-    Residual function of yawed-actuator disk model in Eq. 2.15.
+    def u4(self):
+        return self._u4
 
-    Args:
-        x (np.ndarray): (a, u4, v4)
-        Ctprime (float): Rotor thrust coefficient.
-        yaw (float): Rotor yaw angle (radians).
-        Uamb (float): Ambient wind velocity. Defaults to 1.0.
-
-    Returns:
-        np.ndarray: residuals of induction and outlet velocities.
-    """
-
-    a, u4, v4 = x
-    e_a = (
-        1
-        - np.sqrt(Uamb**2 - u4**2 - v4**2)
-        / (np.sqrt(Ctprime) * Uamb * np.cos(yaw))
-        - a
-    )
-
-    e_u4 = Uamb * (1 - 0.5 * Ctprime * (1 - a) * np.cos(yaw) ** 2) - u4
-
-    e_v4 = -Uamb * 0.25 * Ctprime * (1 - a) ** 2 * np.sin(yaw) * np.cos(yaw) ** 2 - v4
-
-    return np.array([e_a, e_u4, e_v4])
+    def v4(self):
+        return self._v4
 
 
 def _yawthrust_ddyaw_residual(
@@ -167,32 +127,6 @@ def _yawthrust_ddCt_residual(
     ) - dvdCt
 
     return np.array([e_dadCt, e_dudCt, e_dvdCt])
-
-
-def yawthrust(
-    Ctprime: float, yaw: float, Uamb=1.0, eps=0.000001
-) -> Tuple[float, float, float]:
-    """Solves yawed-actuator disk model in Eq. 2.15.
-
-    Args:
-        Ctprime (float): Rotor thrust coefficient.
-        yaw (float): Rotor yaw angle (radians).
-        Uamb (float): Ambient wind velocity. Defaults to 1.0.
-        eps (float): Convergence tolerance. Defaults to 0.000001.
-
-    Returns:
-        Tuple[float, float, float]: induction and outlet velocities.
-    """
-
-    _a, _u4, _v4 = yawthrustlimited(Ctprime, yaw, Uamb)
-
-    a, u4, v4 = fixedpointiteration(
-        _yawthrust_residual,
-        np.array([_a, _u4, _v4]),
-        args=(Ctprime, yaw, Uamb),
-        eps=eps,
-    )
-    return a, u4, v4
 
 
 def yawthrust_ddCt(
