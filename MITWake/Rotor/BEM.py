@@ -1,3 +1,5 @@
+import numpy as np
+
 from ..BaseClasses import RotorBase
 from mit_bem.BEM import BEM as mitbem
 from mit_bem import ThrustInduction, TipLoss
@@ -20,18 +22,20 @@ class BEM(RotorBase):
         self._x, self._y, self._z = x, y, z
 
         if Cta_method is None:
-            Cta_method = ThrustInduction.mike_corrected
+            Cta_method = "mike_corrected"
 
         if tiploss_method is None:
-            tiploss_method = TipLoss.PrandtlTipAndRootLossGenerator(
-                rotordefinition.hub_radius / rotordefinition.R
-            )
+            tiploss_method = "tiproot"
+
         self.bem = mitbem(
             rotordefinition, Cta_method=Cta_method, tiploss=tiploss_method
         )
 
-    def initialize(self, pitch, tsr, yaw, windfield=None):
-        self.bem.solve(pitch, tsr, yaw, windfield)
+    def initialize(self, pitch, tsr, yaw, U, V):
+        wsp = np.sqrt(U**2 + V**2)
+        wdir = np.arctan2(V, U)
+        
+        self.bem.solve(pitch, tsr, yaw, (wsp, wdir))
 
     def gridpoints(self, _pitch, _tsr, yaw):
         """
@@ -51,6 +55,9 @@ class BEM(RotorBase):
 
     def Ct(self):
         return self.bem.Ct()
+
+    def Cq(self):
+        return self.bem.Cq()
 
     def Ctprime(self):
         return self.bem.Ctprime()

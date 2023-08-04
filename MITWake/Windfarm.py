@@ -8,7 +8,7 @@ from typing import List, Optional, Tuple
 import numpy as np
 
 from MITWake import REWS as REWS_methods
-from MITWake import Superposition, Turbine
+from MITWake import Superposition, Turbine, Windfields
 from .BaseClasses import (
     WindfarmBase,
     RotorBase,
@@ -23,8 +23,8 @@ class Windfarm(WindfarmBase):
         self,
         rotors: List[RotorBase],
         wakes: List[WakeBase],
-        superposition: SuperpositionBase,
-        windfield: WindfieldBase,
+        superposition: SuperpositionBase = Superposition.Linear(),
+        windfield: WindfieldBase = Windfields.Uniform(),
     ):
         assert len(rotors) == len(wakes)
 
@@ -41,40 +41,57 @@ class Windfarm(WindfarmBase):
         """
         idx_upstream = []
         for idx in np.argsort([rotor.x for rotor in self.rotors]):
-            rotor, wake = self.rotors[idx], self.wake[idx]
+            rotor, wake = self.rotors[idx], self.wakes[idx]
             xp, yp, zp = rotor.gridpoints(*setpoints[idx])
 
-            # To do: sample base wind field from self.windfield
-            basewindfield = np.ones_like(xp)
+            Up, Vp = self.wsp(xp, yp, zp, indices=idx_upstream)
 
-            Up = self.wsp(xp, yp, zp, indices=idx_upstream)
-
-            rotor.initialize(*setpoints[idx], windfield=Up)
+            rotor.initialize(*setpoints[idx], U=Up, V=Vp)
             wake.initialize(rotor)
 
             idx_upstream.append(idx)
 
     def wsp(self, x: np.ndarray, y: np.ndarray, z=0.0, indices=None) -> np.ndarray:
-        indices = indices or list(range(self.N))
+        if indices is None:
+            indices = list(range(self.N))
         M = len(indices)
         x, y, z = np.array(x), np.array(y), np.array(z)
-        deficits = np.zeros((M, *x.shape))
 
+        # Sample base wind field.
+        base_U, base_V = self.windfield.wsp(x, y, z)
+
+        deficits = M * [None]
         for idx in indices:
-            deficits[idx, :] = self.wakes[idx].deficit(
+            deficits[idx] = self.wakes[idx].deficit(
                 x - self.rotors[idx].x, y - self.rotors[idx].y, z - self.rotors[idx].z
             )
 
-        # To do: the summation with base flow
-        # U = self.superposition.summation(deficits, self)
-        U = 1 - np.sum(deficits, axis=0)
+        # Perform wake superposition.
+        U = self.superposition.summation(deficits, base_U)
 
-        return U
+        return U, base_V
 
-    # Hello, this is Jaime at the end of a friday (28-7-2023). THis should hopefully work
-    # but I am not sure as I ahvent tested it. Try running the wind farm using
-    # ActuatorDisk for a small wind farm (perhaps from the xamples), then try
-    # the same thing again with BEM.
+
+    def REWS(self):
+        return np.array([turbine.REWS() for turbine in self.rotors])
+
+    def Cp(self):
+        return np.array([turbine.Cp() for turbine in self.rotors])
+
+    def Ct(self):
+        return np.array([turbine.Ct() for turbine in self.rotors])
+
+    def Ctprime(self):
+        return np.array([turbine.Ctprime() for turbine in self.rotors])
+
+    def a(self):
+        return np.array([turbine.a() for turbine in self.rotors])
+
+    def u4(self):
+        return np.array([turbine.u4() for turbine in self.rotors])
+
+    def v4(self):
+        return np.array([turbine.v4() for turbine in self.rotors])
 
 
 class Windfarm_old:

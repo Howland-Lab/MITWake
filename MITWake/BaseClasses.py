@@ -3,7 +3,7 @@ from abc import ABCMeta, abstractmethod
 
 class RotorBase(metaclass=ABCMeta):
     @abstractmethod
-    def initialize(self, windfield, *args, **kwargs):
+    def initialize(self, U, V, *args, **kwargs):
         ...
 
     @abstractmethod
@@ -63,10 +63,6 @@ class WakeBase(metaclass=ABCMeta):
 
 class WindfarmBase(metaclass=ABCMeta):
     @abstractmethod
-    def deficits(self, indices):
-        ...
-
-    @abstractmethod
     def wsp(self, x, y, z):
         ...
 
@@ -74,10 +70,76 @@ class WindfarmBase(metaclass=ABCMeta):
     def initialize(self, *args, **kwargs):
         ...
 
+    @abstractmethod
+    def REWS(self):
+        """
+        Returns a list of REWS for each turbine in the wind farm.
+        """
+        ...
+
+    @abstractmethod
+    def Cp(self):
+        """
+        Returns a list of Cp for each turbine in the wind farm.
+        """
+        ...
+
+    @abstractmethod
+    def Ct(self):
+        """
+        Returns a list of Ct for each turbine in the wind farm.
+        """
+        ...
+
+    @abstractmethod
+    def Ctprime(self):
+        """
+        Returns a list of Ctprime for each turbine in the wind farm.
+        """
+        ...
+
+    @abstractmethod
+    def a(self):
+        """
+        Returns a list of a for each turbine in the wind farm.
+        """
+        ...
+
+    @abstractmethod
+    def u4(self):
+        """
+        Returns a list of u4 for each turbine in the wind farm.
+        """
+        ...
+
+    @abstractmethod
+    def v4(self):
+        """
+        Returns a list of v4 for each turbine in the wind farm.
+        """
+        ...
+
 
 class SuperpositionBase(metaclass=ABCMeta):
-    pass
+    @abstractmethod
+    def summation(self, deficits, baseclass):
+        ...
 
 
 class WindfieldBase(metaclass=ABCMeta):
-    pass
+    @abstractmethod
+    def wsp(self, X, Y, Z):
+        """
+        Returns the normalized wind speed at coordinates (X, Y, Z) in
+        meteorological coordinates normalized by rotor diameter.
+        """
+        ...
+
+    @abstractmethod
+    def wdir(self, X, Y, Z):
+        """
+        Returns the normalized lateral wind direction (positive is clockwise as
+        viewed from top??) at coordinates (X, Y, Z) in meteorological
+        coordinates normalized by rotor diameter.
+        """
+        ...

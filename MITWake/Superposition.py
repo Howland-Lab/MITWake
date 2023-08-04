@@ -2,8 +2,8 @@ import numpy as np
 
 
 class Linear:
-    def summation(self, deficits, windfarm):
-        U = 1 - np.sum(deficits, axis=0)
+    def summation(self, deficits, basewindfield):
+        U = basewindfield - np.sum(deficits, axis=0)
 
         return U
 
