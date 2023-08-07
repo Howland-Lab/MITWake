@@ -11,7 +11,7 @@ from ..REWS import Point
 
 
 class ActuatorDisk(RotorBase):
-    def __init__(self, x=0.0, y=0.0, z=0.0, REWS_method=Point):
+    def __init__(self, x=0.0, y=0.0, z=0.0, REWS_method=Point()):
         """_summary_
 
         Args:
@@ -28,11 +28,11 @@ class ActuatorDisk(RotorBase):
         Returns grid points over rotor in meteorological coordinates normalized
         by rotor diameter.
         """
-        X, Y, Z = self.REWS_method.grid_points(self.x, self.y)
+        X, Y, Z = self.REWS_method.grid_points([self.x], [self.y])
 
         return X + self.x, Y + self.y, Z + self.z
 
-    def initialize(self, Ctprime, yaw, windfield=None, eps=0.000001):
+    def initialize(self, Ctprime, yaw, U=None, V=None, eps=0.000001):
         """Solves yawed-actuator disk model in Eq. 2.15.
 
         Args:
@@ -47,8 +47,8 @@ class ActuatorDisk(RotorBase):
         """
         self._Ctprime, self._yaw = Ctprime, yaw
 
-        if windfield:
-            self._REWS = self.REWS_method.integrate(windfield)
+        if U is not None:
+            self._REWS = self.REWS_method.integrate(U)[0]
         else:
             self._REWS = 1
 

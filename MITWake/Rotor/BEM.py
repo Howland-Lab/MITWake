@@ -35,7 +35,7 @@ class BEM(RotorBase):
         wsp = np.sqrt(U**2 + V**2)
         wdir = np.arctan2(V, U)
         
-        self.bem.solve(pitch, tsr, yaw, (wsp, wdir))
+        return self.bem.solve(pitch, tsr, yaw, (wsp, wdir))
 
     def gridpoints(self, _pitch, _tsr, yaw):
         """
