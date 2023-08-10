@@ -1,8 +1,8 @@
 import numpy as np
 
 from ..BaseClasses import RotorBase
-from mit_bem.BEM import BEM as mitbem
-from mit_bem import ThrustInduction, TipLoss
+from MITBEM.BEM import BEM as mitbem
+from MITBEM import ThrustInduction, TipLoss
 
 
 class BEM(RotorBase):
