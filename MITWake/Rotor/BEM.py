@@ -7,7 +7,15 @@ from MITBEM import ThrustInduction, TipLoss
 
 class BEM(RotorBase):
     def __init__(
-        self, rotordefinition, x=0.0, y=0.0, z=0.0, Cta_method=None, tiploss_method=None
+        self,
+        rotordefinition,
+        x=0.0,
+        y=0.0,
+        z=0.0,
+        Cta_method=None,
+        tiploss_method=None,
+        Nr=20,
+        Ntheta=21,
     ):
         """_summary_
 
@@ -28,13 +36,17 @@ class BEM(RotorBase):
             tiploss_method = "tiproot"
 
         self.bem = mitbem(
-            rotordefinition, Cta_method=Cta_method, tiploss=tiploss_method
+            rotordefinition,
+            Cta_method=Cta_method,
+            tiploss=tiploss_method,
+            Nr=Nr,
+            Ntheta=Ntheta,
         )
 
     def initialize(self, pitch, tsr, yaw, U, V):
         wsp = np.sqrt(U**2 + V**2)
         wdir = np.arctan2(V, U)
-        
+
         return self.bem.solve(pitch, tsr, yaw, (wsp, wdir))
 
     def gridpoints(self, _pitch, _tsr, yaw):
