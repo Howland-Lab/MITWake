@@ -3,25 +3,27 @@ try:
     from typing import Literal
 except ImportError:
     from typing_extensions import Literal
-from MITWake import Rotor, Wake
+from MITWake import Rotor, Wake, CurledWake
 import numpy as np
 
 
 class BasicTurbine:
     def __init__(
         self,
-        Ct: float,
+        ctp: float,
         yaw: float,
         x=0.0,
         y=0.0,
-        sigma=0.25,
-        kw=0.07,
+        # sigma=0.25,
+        # kw=0.07,
         induction_eps=0.000001,
+        wake_type='Gauss', 
+        wake_kwargs=None, 
     ) -> None:
         """
 
         Args:
-            Ct (float): Rotor thrust coefficient.
+            Ct (float): Rotor modified thrust coefficient.
             yaw (float): Rotor yaw angle (radians).
             x (float): Longitudinal turbine position. Defaults to 0.0.
             y (float): Lateral turbine position. Defaults to 0.0.
@@ -30,9 +32,23 @@ class BasicTurbine:
             induction_eps (float): Convergence tolerance. Defaults to 0.000001.
         """
         self.x, self.y = x, y
-        self.Ct, self.yaw = Ct, yaw
-        self.a, u4, v4 = Rotor.yawthrust(Ct, yaw, eps=induction_eps)
-        self.wake = Wake.Gaussian(u4, v4, sigma, kw)
+        self.ctp, self.yaw = ctp, yaw
+        self.a, u4, v4 = Rotor.yawthrust(ctp, yaw, eps=induction_eps)
+
+        if wake_kwargs is None: 
+            wake_kwargs = {}
+
+        self.wake_type = wake_type
+
+        if wake_type == 'Gauss': 
+            # self.wake = Wake.Gaussian(u4, v4, **wake_kwargs)
+            self.wake = Wake.Gaussian(ctp=self.ctp, yaw=self.yaw, **wake_kwargs)
+        elif wake_type == 'BP16': 
+            ct1 = self.ctp * np.cos(self.yaw)**2 * (1 - self.a)**2
+            self.wake = Wake.GaussianBP(ct1, self.yaw, **wake_kwargs)
+        elif wake_type == 'CWM': 
+            ct2 = self.ctp * (1 - self.a)**2
+            self.wake = CurledWake.CurledWake(ct2, self.yaw, **wake_kwargs)
 
     def deficit(
         self, x: np.ndarray, y: np.ndarray, z=0, FOR: Literal["met", "local"] = "met"
@@ -54,11 +70,13 @@ class BasicTurbine:
         Returns:
             np.ndarray: Wake deficit at sample points.
         """
+        # x, y, z = reshape(x, y, z)
+
         if FOR == "met":
             return self.wake.deficit(x - self.x, y - self.y, z)
         elif FOR == "local":
             return self.wake.deficit(x, y, z)
-
+        
 
 class GradientTurbine:
     def __init__(
@@ -120,3 +138,20 @@ class GradientTurbine:
             return self.wake.deficit(x - self.x, y - self.y, z)
         elif FOR == "local":
             return self.wake.deficit(x, y, z)
+
+
+def reshape(x, y, z): 
+    """Reshape to consistent dimensions"""
+    x = np.atleast_1d(x)
+    y = np.atleast_1d(y)
+    z = np.atleast_1d(z)
+
+    if len(z) == 1: 
+        # x, y, z are a 2D grid
+        if not (x.shape == y.shape): 
+            x = x[:, None]
+            y = y[None, :]
+    else: 
+        pass  # TODO: handle edge cases
+
+    return x, y, z
