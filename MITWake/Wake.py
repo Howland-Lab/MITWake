@@ -2,14 +2,30 @@ from typing import Optional, Tuple
 import numpy as np
 from scipy.special import erf
 from scipy.integrate import cumtrapz
-
+from MITWake.Rotor import yawthrust
 
 class Gaussian:
-    def __init__(self, u4: float, v4: float, sigma=0.25, kw=0.07) -> None:
+    def __init__(self, u4: float=None, v4: float=None, 
+                 ctp=None, yaw=None, 
+                 sigma=0.25, kw=0.07, 
+                 x0=1.) -> None:
+        """
+        Args: 
+            u4, v4 (float): from MITWake.Rotor.yawthrust
+            ctp (float): C_T' value
+            yaw (float): yaw (radians)
+        """
+        if u4 is None and v4 is None: 
+            a, u4, v4 = yawthrust(Ctprime=ctp, yaw=yaw)  # may throw error
+            ct1 = ctp * np.cos(yaw)**2 * (1 - a)**2
+            self.ctp = ctp
+            self.yaw = yaw
+            self.ct = ct1  # "traditional" thrust coefficient
         self.u4 = u4
         self.v4 = v4
         self.sigma = sigma  # Default values from paper
         self.kw = kw  # Default values from paper
+        self.x0 = x0  # uses \Delta_w = 0.5 if True
 
     def centerline(self, x: np.ndarray, dx=0.05) -> np.ndarray:
         """
@@ -30,7 +46,19 @@ class Gaussian:
         """
         Solves the normalized far-wake diameter (between C1 and C2)
         """
-        return 1 + self.kw * np.log(1 + np.exp(2 * (x - 1)))
+        if self.x0 < 0: 
+            # uses near-wake length from Bastankhah and Porte-Agel (2016)
+            astar, bstar = 2.32, 0.154
+            I = 0.057
+            x0 = np.cos(self.yaw) * (1 + np.sqrt(1 - self.ct)) / \
+                (np.sqrt(2) * (astar * I + bstar * (1 - np.sqrt(1 - self.ct))))
+        else: 
+            x0 = self.x0
+
+        return 1 + self.kw * np.log(1 + np.exp(2 * (x - x0)))
+        
+        # Heck, et al. (2023) paper uses: 
+        # return 1 + self.kw * np.log(1 + np.exp(2 * (x - 1)))
 
     def du(self, x: np.ndarray, wake_diameter: Optional[float] = None) -> np.ndarray:
         """
@@ -54,7 +82,7 @@ class Gaussian:
             * np.exp(-(((y - yc) ** 2 + z**2) / (2 * self.sigma**2 * d**2)))
         )
 
-        return deficit_ * du
+        return np.squeeze(deficit_ * du)
 
     def line_deficit(self, x: np.array, y: np.array):
         """
@@ -171,3 +199,149 @@ class GradGaussian(Gaussian):
         )
 
         return deficit_ * du, ddeficitdCt, ddeficitdyaw
+
+
+class GaussianBP():
+    """
+    Yawed Gaussian wake model described in Bastankhah and Porte-Agel (2016).
+    """
+
+    def __init__(
+        self,
+        ct: float,
+        yaw: float = 0.0,
+        ky: float = 0.035,
+        kz: Optional[float] = None,
+        TI: float = 0.05,
+        astar: float = 2.32,
+        bstar: float = 0.154,
+        d: float = 1,
+        u_inf: float = 1,
+    ):
+        """
+        Args:
+            ct (float): Rotor thrust coefficient, non-dimensionalized to
+                pi/8 d**2 rho u_h^2.
+            yaw (float): Rotor yaw angle (radians).
+            ky (float): Wake spreading parameter. Defaults to 0.07.
+            kz (float, optional): Wake spreading parameter. Defaults to None.
+            TI (float): Turbulence intensity. Defaults to 0.05.
+            astar (float, optional): alpha^* tuning parameter. Defaults to 2.32.
+            bstar (float, optional): beta^* tuning parameter. Defaults to 0.154.
+            d (float, optional): non-dimensionalizing value for diameter. Defaults to 1.
+            u_inf (float, optional): hub height velocity. Defaults to 1.
+        """
+        self.ct = ct
+        self.yaw = -yaw  # BP2016 uses CW positive sign convention for yaw
+        self.ky = ky
+        if kz is None:
+            self.kz = ky
+        else:
+            self.kz = kz
+        self.TI = TI
+        self.astar = astar
+        self.bstar = bstar
+        self.d = d
+        self.x0 = self.calc_x0()
+        self.theta0 = self.calc_theta0()
+        self.u_inf = u_inf
+
+    def calc_theta0(self):
+        """
+        Solves eq. 6.12
+        """
+        theta_0 = (
+            0.3
+            * self.yaw
+            / np.cos(self.yaw)
+            * (1 - np.sqrt(1 - self.ct * np.cos(self.yaw)))
+        )
+        return theta_0
+
+    def calc_x0(self):
+        """
+        Solves eq. 7.3
+        """
+        x0 = self.d * np.cos(self.yaw) * (1 + np.sqrt(1 - self.ct)) / \
+            (np.sqrt(2) * (self.astar * self.TI + self.bstar * (1 - np.sqrt(1 - self.ct))))
+        return x0
+
+    def sigma_y(
+        self,
+        x: np.array,
+    ):
+        """
+        Solves eq. 7.2a
+        """
+        x = np.atleast_1d(x)
+        sigma_y0 = self.d * np.cos(self.yaw) / np.sqrt(8)
+        sigma_y = self.ky * (x - self.x0) + sigma_y0
+        sigma_y[x < self.x0] = sigma_y0
+        return sigma_y
+
+    def sigma_z(
+        self,
+        x: np.array,
+    ):
+        """
+        Solves eq. 7.2b
+        """
+        x = np.atleast_1d(x)
+        sigma_z0 = self.d / np.sqrt(8)
+        sigma_z = self.kz * (x - self.x0) + sigma_z0
+        sigma_z[x < self.x0] = sigma_z0
+        return sigma_z
+
+    def centerline(
+        self,
+        x: np.array,
+    ):
+        """
+        Solves eq. 7.4
+        """
+        x = np.atleast_1d(x)
+        d = self.d
+        t0 = self.theta0
+        ct = self.ct
+        cos = np.cos(self.yaw)
+        A1 = 1.6 * np.sqrt(
+            8 * self.sigma_y(x) * self.sigma_z(x) / d**2 / cos
+        )  # tmp variable
+
+        delta = t0 * self.x0 + d * t0 / 14.7 * np.sqrt(cos / self.ky / self.kz / ct) * (
+            2.9 + 1.3 * np.sqrt(1 - ct) - ct
+        ) * np.log(
+            (1.6 + np.sqrt(ct)) * (A1 - np.sqrt(ct))
+            / ((1.6 - np.sqrt(ct)) * (A1 + np.sqrt(ct)))
+        )
+
+        delta = np.atleast_1d(delta)
+        delta[x < self.x0] = t0 * x[x < self.x0]
+        delta[x < 0] = 0
+        return delta
+
+    def deficit(
+        self,
+        x: np.array,
+        y: np.array,
+        z: Optional[np.array] = 0,
+    ):
+        """
+        Computes wake deficit (eq. 7.1)
+        """
+
+        sigma_y = self.sigma_y(x)
+        sigma_z = self.sigma_z(x)
+        delta = self.centerline(x)
+        C1 = self.u_inf * (
+            1 - np.sqrt(
+                1 - self.ct * np.cos(self.yaw) / (8 * sigma_y * sigma_z / self.d**2)
+            )
+        )
+        delta_u = (
+            C1
+            * np.exp(-0.5 * ((y - delta) / sigma_y) ** 2)
+            * np.exp(-0.5 * (z / sigma_z) ** 2)
+        )
+        return np.squeeze(delta_u)
+    
