@@ -87,8 +87,8 @@ def _yawthrust_residual(
     a, u4, v4 = x
     e_a = (
         1
-        - np.sqrt(Uamb**2 - u4**2 - v4**2)
-        / (np.sqrt(Ctprime) * Uamb * np.cos(yaw))
+        - np.sqrt((Uamb**2 - u4**2 - v4**2) / Ctprime)
+        / (Uamb * np.cos(yaw))
         - a
     )
 
