@@ -44,9 +44,15 @@ def calibrate(wake_type, uwake_ref, x=0, y=0, z=0,
     elif wake_type == 'BP16': 
         calib_kwargs = {'ky': 0.03}  # default: symmetric in y, z
         constraints = ([1e-4, 0.5], )
+    elif wake_type == 'BP16_yz': 
+        wake_type = 'BP16'
+        calib_kwargs = {'ky': 0.03, 'kz': 0.03}  # asymmetric gaussian
+        constraints = ([1e-4, 0.5], [1e-4, 0.5], )
     elif wake_type == 'CWM': 
         calib_kwargs = {'C': 2.}
         constraints = ([0.1, 8], )
+    else: 
+        raise ValueError("`wake_type` must be 'Gauss', 'BP16', 'BP16_yz', or 'CWM'. ")
 
     if wake_kwargs == None: 
         wake_kwargs = {}  # setting a keyword argument to a mutable has issues
@@ -87,31 +93,34 @@ def calibrate(wake_type, uwake_ref, x=0, y=0, z=0,
         xG, yG = np.meshgrid(x, y, indexing='ij')
         delta_u = wake.deficit(xG, yG, 0)  # compute reference wake
         zline = np.atleast_1d(z)
-        zid = np.argmin(abs(zline))
-
+        if len(zline) == 1: 
+            ref_plot = uwake_ref
+        else: 
+            zid = np.argmin(abs(zline))
+            ref_plot = uwake_ref[..., zid]
 
         ext = [x.min(), x.max(), y.min(), y.max()]
         AR = (y.max() - y.min()) / (x.max() - x.min())
         fig, axs = plt.subplots(ncols=3, sharey=True, figsize=(6 * AR, 2))
         ax = axs[0]
         # mask = 1# sl_plot['ubar_deficit'] > 0.02
-        im = ax.imshow(uwake_ref[..., zid].T, origin='lower', extent=ext)
+        im = ax.imshow(ref_plot.T, origin='lower', extent=ext)
         ax.set_title('LES')
-        plt.colorbar(im, ax=ax)
+        # plt.colorbar(im, ax=ax)
 
         ax = axs[1]
         ax.imshow(delta_u.T, origin='lower', extent=ext, clim=im.get_clim())
         ax.set_title('Model')
-        plt.colorbar(im, ax=ax)
+        plt.colorbar(im, ax=axs[0:2])
 
         ax = axs[2]
-        diff = uwake_ref[..., zid]-delta_u
+        diff = ref_plot-delta_u
         cmax = np.max(abs(diff))
         im2 = ax.imshow(diff.T, origin='lower', extent=ext, cmap='RdBu_r', clim=[-cmax, cmax])
         # ax.set_title('LES - model')
         ax.set_title(_kwargs)
         plt.colorbar(im2, ax=ax)
-        plt.tight_layout()
+        # plt.tight_layout()
         plt.show()
 
     params = {key: value for key, value in zip(calib_kwargs.keys(), ret.x)}
