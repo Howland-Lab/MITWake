@@ -8,7 +8,9 @@ class Gaussian:
     def __init__(self, u4: float=None, v4: float=None, 
                  ctp=None, yaw=None, 
                  sigma=0.25, kw=0.07, 
-                 x0=1.) -> None:
+                 x0=1., 
+                 astar=2.32, bstar=0.154, 
+                 TI=0.05) -> None:
         """
         Args: 
             u4, v4 (float): from MITWake.Rotor.yawthrust
@@ -26,6 +28,9 @@ class Gaussian:
         self.sigma = sigma  # Default values from paper
         self.kw = kw  # Default values from paper
         self.x0 = x0  # uses \Delta_w = 0.5 if True
+        self.astar, self.bstar = astar, bstar
+        self.TI = TI
+
 
     def centerline(self, x: np.ndarray, dx=0.05) -> np.ndarray:
         """
@@ -48,10 +53,8 @@ class Gaussian:
         """
         if self.x0 < 0: 
             # uses near-wake length from Bastankhah and Porte-Agel (2016)
-            astar, bstar = 2.32, 0.154
-            I = 0.057
             x0 = np.cos(self.yaw) * (1 + np.sqrt(1 - self.ct)) / \
-                (np.sqrt(2) * (astar * I + bstar * (1 - np.sqrt(1 - self.ct))))
+                (np.sqrt(2) * (self.astar * self.TI + self.bstar * (1 - np.sqrt(1 - self.ct))))
         else: 
             x0 = self.x0
 
@@ -217,6 +220,8 @@ class GaussianBP():
         bstar: float = 0.154,
         d: float = 1,
         u_inf: float = 1,
+        alpha_in: np.ndarray = None,
+        alpha_z: np.ndarray = None,  
     ):
         """
         Args:
@@ -230,6 +235,8 @@ class GaussianBP():
             bstar (float, optional): beta^* tuning parameter. Defaults to 0.154.
             d (float, optional): non-dimensionalizing value for diameter. Defaults to 1.
             u_inf (float, optional): hub height velocity. Defaults to 1.
+            alpha_in (float or ndarray, optional): inflow angles as a function of z
+            alpha_z (float or ndarray, optional): z-locations corresponding to indices of alpha_in
         """
         self.ct = ct
         self.yaw = -yaw  # BP2016 uses CW positive sign convention for yaw
@@ -245,6 +252,8 @@ class GaussianBP():
         self.x0 = self.calc_x0()
         self.theta0 = self.calc_theta0()
         self.u_inf = u_inf
+        self.alpha_in = alpha_in
+        self.alpha_in_z = alpha_z
 
     def calc_theta0(self):
         """
@@ -333,15 +342,26 @@ class GaussianBP():
         sigma_y = self.sigma_y(x)
         sigma_z = self.sigma_z(x)
         delta = self.centerline(x)
+        if self.alpha_in is not None: 
+            if self.alpha_in_z is None: 
+                # assume linear veer, and alpha_in is given by eq. 5 in Abkar et al. (2018)
+                alpha_in = alpha_in * z
+            else: 
+                alpha_in = np.interp(z, self.alpha_in_z, self.alpha_in)
+            delta_veer = x * np.tan(alpha_in)
+        else: 
+            delta_veer = 0  # no deflection due to veer
         C1 = self.u_inf * (
             1 - np.sqrt(
                 1 - self.ct * np.cos(self.yaw) / (8 * sigma_y * sigma_z / self.d**2)
             )
         )
+        C1[x < 0] = 0  # no upstream wakes!
         delta_u = (
             C1
-            * np.exp(-0.5 * ((y - delta) / sigma_y) ** 2)
+            * np.exp(-0.5 * ((y - delta - delta_veer) / sigma_y) ** 2)
             * np.exp(-0.5 * (z / sigma_z) ** 2)
         )
+        
         return np.squeeze(delta_u)
     
