@@ -33,7 +33,7 @@ class BasicTurbine:
         """
         self.x, self.y = x, y
         self.ctp, self.yaw = ctp, yaw
-        self.a, u4, v4 = Rotor.yawthrust(ctp, yaw, eps=induction_eps)
+        self.a, self.u4, self.v4 = Rotor.yawthrust(ctp, yaw, eps=induction_eps)
 
         if wake_kwargs is None: 
             wake_kwargs = {}
