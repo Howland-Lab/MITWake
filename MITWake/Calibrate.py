@@ -41,6 +41,9 @@ def calibrate(wake_type, uwake_ref, x=0, y=0, z=0,
     if wake_type == 'Gauss': 
         calib_kwargs = {'kw': 0.07, 'sigma': 0.25}  # default values
         constraints = ([1e-4, 0.5], [1e-3, 0.5])
+        if 'sigma' in wake_kwargs.keys():  # hotfix workaround: don't fit sigma
+            del calib_kwargs['sigma']
+            constraints = (constraints[0], )
     elif wake_type == 'BP16': 
         calib_kwargs = {'ky': 0.03}  # default: symmetric in y, z
         constraints = ([1e-4, 0.5], )
@@ -54,7 +57,7 @@ def calibrate(wake_type, uwake_ref, x=0, y=0, z=0,
     else: 
         raise ValueError("`wake_type` must be 'Gauss', 'BP16', 'BP16_yz', or 'CWM'. ")
 
-    if wake_kwargs == None: 
+    if wake_kwargs is None: 
         wake_kwargs = {}  # setting a keyword argument to a mutable has issues
 
     xG, yG, zG = np.meshgrid(x, y, z, indexing='ij')

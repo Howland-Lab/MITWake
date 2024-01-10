@@ -10,7 +10,9 @@ class Gaussian:
                  sigma=0.25, kw=0.07, 
                  x0=1., 
                  astar=2.32, bstar=0.154, 
-                 TI=0.05) -> None:
+                 TI=0.05, 
+                 smooth=True, 
+                ) -> None:
         """
         Args: 
             u4, v4 (float): from MITWake.Rotor.yawthrust
@@ -30,7 +32,7 @@ class Gaussian:
         self.x0 = x0  # uses \Delta_w = 0.5 if True
         self.astar, self.bstar = astar, bstar
         self.TI = TI
-
+        self.smooth = smooth
 
     def centerline(self, x: np.ndarray, dx=0.05) -> np.ndarray:
         """
@@ -53,13 +55,19 @@ class Gaussian:
         """
         if self.x0 < 0: 
             # uses near-wake length from Bastankhah and Porte-Agel (2016)
-            x0 = np.cos(self.yaw) * (1 + np.sqrt(1 - self.ct)) / \
-                (np.sqrt(2) * (self.astar * self.TI + self.bstar * (1 - np.sqrt(1 - self.ct))))
+            ct = self.ct * np.cos(self.yaw)**2  # BP16 definition of C_T
+            x0 = np.cos(self.yaw) * (1 + np.sqrt(1 - ct)) / \
+                (np.sqrt(2) * (self.astar * self.TI + self.bstar * (1 - np.sqrt(1 - ct))))
         else: 
             x0 = self.x0
 
-        return 1 + self.kw * np.log(1 + np.exp(2 * (x - x0)))
-        
+        if self.smooth: 
+            return 1 + self.kw * np.log(1 + np.exp(2 * (x - x0)))
+
+        diam = 1 + self.kw * 2 * (x - x0)
+        diam[diam < 1] = 1
+        return diam
+
         # Heck, et al. (2023) paper uses: 
         # return 1 + self.kw * np.log(1 + np.exp(2 * (x - 1)))
 
@@ -351,10 +359,11 @@ class GaussianBP():
             delta_veer = x * np.tan(alpha_in)
         else: 
             delta_veer = 0  # no deflection due to veer
+        
+        radical = 1 - self.ct * np.cos(self.yaw) / (8 * sigma_y * sigma_z / self.d**2)
+        radical[np.isclose(radical, 0)] = 0  # helps with avoiding nans
         C1 = self.u_inf * (
-            1 - np.sqrt(
-                1 - self.ct * np.cos(self.yaw) / (8 * sigma_y * sigma_z / self.d**2)
-            )
+            1 - np.sqrt(radical)
         )
         C1[x < 0] = 0  # no upstream wakes!
         delta_u = (
